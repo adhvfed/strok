@@ -1,0 +1,167 @@
+documentsize 400x400
+
+# Background
+shape bg template=rectangle
+  fill #faf6f0
+
+place bg shape=bg at=0,0 size=400x400
+
+# ---- STEM ----
+
+shape stem template=path
+  addpoint base at=200,388
+  addpoint lower at=197,348 mode=catmull-rom tension=0.2
+  addpoint mid at=192,305 mode=catmull-rom tension=0.2
+  addpoint upper at=195,260 mode=catmull-rom tension=0.2
+  addpoint neck at=198,228 mode=catmull-rom tension=0.4
+  stroke #3a7d44
+  stroke-width 3.5
+  stroke-linecap round
+
+place stem shape=stem at=0,0
+
+# ---- THORNS ----
+
+shape thorn-l template=path
+  addpoint base at=0,0
+  addpoint tip at=-11,-8 mode=catmull-rom tension=0.4
+  stroke #3a7d44
+  stroke-width 2
+  stroke-linecap round
+
+shape thorn-r template=path
+  addpoint base at=0,0
+  addpoint tip at=11,-8 mode=catmull-rom tension=0.4
+  stroke #3a7d44
+  stroke-width 2
+  stroke-linecap round
+
+place thorn-1 shape=thorn-l at=193,316
+place thorn-2 shape=thorn-r at=194,278
+
+# ---- LEAVES ----
+
+shape leaf template=path
+  addpoint tip at=0,16
+  addpoint upper at=26,2 mode=catmull-rom tension=-0.1
+  addpoint end at=58,12 mode=catmull-rom tension=0.45
+  addpoint lower at=26,30 mode=catmull-rom tension=-0.1
+  close
+  fill #4a9950
+  stroke #3a7d44
+  stroke-width 1
+
+shape leaf-vein template=path
+  addpoint start at=6,16
+  addpoint end at=50,12 mode=catmull-rom tension=0.5
+  stroke #367a3e
+  stroke-width 0.7
+  stroke-linecap round
+
+place leaf-l shape=leaf at=134,320 rotation=-15deg
+place leaf-l-v shape=leaf-vein at=134,320 rotation=-15deg
+place leaf-r shape=leaf at=204,278 flip=x rotation=10deg
+place leaf-r-v shape=leaf-vein at=204,278 flip=x rotation=10deg
+
+# ---- SEPALS ----
+
+shape sepal template=path
+  addpoint base at=0,16
+  addpoint mid at=12,0 mode=catmull-rom tension=0.2
+  addpoint tip at=34,-5
+  addpoint return at=8,18 mode=catmull-rom tension=0.4
+  close
+  fill #3a7d44
+  stroke none
+
+place sepal-l shape=sepal at=160,216 rotation=-10deg
+place sepal-c shape=sepal at=185,210 rotation=12deg
+place sepal-r shape=sepal at=216,216 flip=x rotation=10deg
+
+# ---- BLOOM ----
+
+# Petal shape — slightly pulled ellipse
+shape petal template=ellipse
+  pullpoint top dir=up 5%
+  pullpoint bottom dir=down 3%
+
+# === BACK LAYER — darkest ===
+createlink petal-back from=petal
+  fill #982040
+  stroke #801430
+  stroke-width 0.5
+
+# Wide side petals — peek behind the whole bloom
+place pb-fl shape=petal-back at=155,168 size=58x74 rotation=-22deg
+place pb-fr shape=petal-back at=245,168 size=58x74 rotation=22deg flip=x
+# Back center cluster — tall, closes the dome
+place pb-cl shape=petal-back at=182,148 size=42x88 rotation=-3deg
+place pb-cr shape=petal-back at=218,148 size=42x88 rotation=3deg flip=x
+place pb-cc shape=petal-back at=200,145 size=56x90
+# Cap to bridge any remaining gap at the top
+place pb-cap shape=petal-back at=200,142 size=34x50
+
+# === OUTER LAYER ===
+createlink petal-outer from=petal
+  fill #b43452
+  stroke #9c2c46
+  stroke-width 0.5
+
+place po-l shape=petal-outer at=162,172 size=54x70 rotation=-14deg
+place po-r shape=petal-outer at=238,172 size=54x70 rotation=14deg flip=x
+
+# === MID-OUTER ===
+createlink petal-midout from=petal
+  fill #c64060
+  stroke #b03856
+  stroke-width 0.4
+
+place pmo-l shape=petal-midout at=174,162 size=44x74 rotation=-6deg
+place pmo-r shape=petal-midout at=226,162 size=44x74 rotation=6deg flip=x
+place pmo-c shape=petal-midout at=200,155 size=36x78
+
+# === MID LAYER ===
+createlink petal-mid from=petal
+  fill #d44e6e
+  stroke #be4462
+  stroke-width 0.4
+
+place pm-l shape=petal-mid at=180,170 size=38x62 rotation=-8deg
+place pm-r shape=petal-mid at=220,170 size=38x62 rotation=8deg flip=x
+place pm-c shape=petal-mid at=200,158 size=30x66
+
+# === INNER ===
+createlink petal-inner from=petal
+  fill #e06888
+  stroke #d05878
+  stroke-width 0.3
+
+place pi-l shape=petal-inner at=186,174 size=28x48 rotation=-5deg
+place pi-r shape=petal-inner at=214,174 size=28x48 rotation=5deg flip=x
+place pi-c shape=petal-inner at=200,164 size=20x52
+
+# === CORE WRAP ===
+createlink petal-core from=petal
+  fill #e88098
+  stroke #e06888
+  stroke-width 0.2
+
+place pc-l shape=petal-core at=192,178 size=16x34 rotation=-3deg
+place pc-r shape=petal-core at=208,178 size=16x34 rotation=3deg flip=x
+
+# === CENTER BUD ===
+shape bud-outer template=ellipse
+  fill #cc3e5e
+  stroke none
+
+shape bud-inner template=ellipse
+  fill #b83050
+  stroke none
+
+shape bud-tip template=ellipse
+  fill #a42242
+  stroke none
+
+place bud-o shape=bud-outer at=200,180 size=14x22
+place bud-i shape=bud-inner at=200,178 size=9x16
+place bud-t shape=bud-tip at=200,176 size=5x9

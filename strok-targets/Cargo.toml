@@ -1,0 +1,16 @@
+[package]
+name = "strok-targets"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+description = "React, Solid, vanilla web, Tailwind, and DTCG emitters for Strøk"
+
+[dependencies]
+strok-core = { version = "0.1.0", path = "../strok-core" }
+
+[lints]
+workspace = true

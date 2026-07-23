@@ -1,0 +1,145 @@
+documentsize 600x400
+
+# Background
+shape bg template=rectangle
+  fill #f0f0f0
+
+place bg shape=bg at=0,0 size=600x400
+
+# ---- Row 1: Base templates ----
+
+# Rectangle
+shape rect template=rectangle
+  fill #4a90d9
+  stroke #2a5a8a
+  stroke-width 2
+
+place rect shape=rect at=30,30 size=100x70
+
+# Ellipse
+shape circ template=ellipse
+  fill #d94a4a
+  stroke #8a2a2a
+  stroke-width 2
+
+place circ shape=circ at=170,30 size=100x70
+
+# Triangle
+shape tri template=triangle
+  fill #4ad97a
+  stroke #2a8a4a
+  stroke-width 2
+
+place tri shape=tri at=310,30 size=100x70
+
+# Line
+shape ln template=line
+  movepoint start to=0,0
+  movepoint end to=80,50
+  stroke #d9a04a
+  stroke-width 3
+  stroke-linecap round
+  fill none
+
+place ln shape=ln at=470,30
+
+# ---- Row 2: Path types ----
+
+# Sharp zigzag
+shape zigzag template=path
+  addpoint a at=0,50
+  addpoint b at=20,5
+  addpoint c at=40,50
+  addpoint d at=60,5
+  addpoint e at=80,50
+  stroke #8a4ad9
+  stroke-width 2.5
+  stroke-linecap round
+  fill none
+
+place zigzag shape=zigzag at=30,140
+
+# Smooth wave
+shape wave template=path
+  addpoint a at=0,25
+  addpoint b at=25,0 mode=catmull-rom
+  addpoint c at=50,25 mode=catmull-rom
+  addpoint d at=75,50 mode=catmull-rom
+  addpoint e at=100,25 mode=catmull-rom
+  stroke #d94a90
+  stroke-width 2
+  stroke-linecap round
+  fill none
+
+place wave shape=wave at=170,140
+
+# Closed smooth blob
+shape blob template=path
+  addpoint top at=40,0
+  addpoint right at=80,30 mode=catmull-rom
+  addpoint bottom at=40,60 mode=catmull-rom
+  addpoint left at=0,30 mode=catmull-rom
+  close
+  fill #90d9d9
+  stroke #4a8a8a
+  stroke-width 1.5
+
+place blob shape=blob at=340,130
+
+# ---- Row 3: Flip + Rotation + Createlink ----
+
+# Arrow shape for flip testing
+shape arrow template=path
+  addpoint tail at=0,20
+  addpoint mid at=40,20
+  addpoint top at=30,5
+  addpoint head at=60,20
+  addpoint bot at=30,35
+  close
+  fill #e8a040
+  stroke #b07020
+  stroke-width 1
+
+# Normal
+place arrow-n shape=arrow at=30,260
+
+# Flip X
+place arrow-fx shape=arrow at=130,260 flip=x
+
+# Flip Y
+place arrow-fy shape=arrow at=30,310 flip=y
+
+# Rotation
+shape diamond template=rectangle
+  fill #d070d0
+  stroke #904090
+  stroke-width 1.5
+
+place dia-0 shape=diamond at=220,270 size=40x40
+place dia-45 shape=diamond at=290,270 size=40x40 rotation=45deg
+
+# Createlink — same geometry, different colors
+shape dot template=ellipse
+  fill #ff6666
+  stroke none
+
+createlink dot-blue from=dot
+  fill #6666ff
+
+createlink dot-green from=dot
+  fill #66cc66
+
+place dot-r shape=dot at=390,270 size=30x30
+place dot-b shape=dot-blue at=430,270 size=30x30
+place dot-g shape=dot-green at=470,270 size=30x30
+
+# ---- Row 4: Operations ----
+
+# Pullpoint effect
+shape pulled-ellipse template=ellipse
+  pullpoint top dir=up 20%
+  fill #ffa0a0
+  stroke #cc6060
+  stroke-width 1
+
+place pulled shape=pulled-ellipse at=530,260 size=50x60

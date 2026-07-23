@@ -1,0 +1,18 @@
+# Canary: text flowing along a path (E2.7, <textPath>). A label rides an arched
+# path. The renderer + SVG export share the path's `d` (placed_document_d).
+documentsize 200x100
+
+shape arch template=path
+  addpoint a at=20,70
+  addpoint b at=180,70 mode=arc rx=90 ry=50 bulge=left
+  stroke none
+  fill none
+
+shape label template=text
+  content "RIDE THE CURVE"
+  font-size 16
+  font-family "Georgia"
+  fill #1a1a1a
+
+place arch shape=arch at=0,0
+place label shape=label at=0,0 textpath=arch

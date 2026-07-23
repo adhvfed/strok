@@ -1,0 +1,44 @@
+---
+source: strok-cli/tests/cli_tests.rs
+expression: json
+---
+{
+  "version": 1,
+  "count": 2,
+  "icons": [
+    {
+      "name": "arrow-left",
+      "meaning": "Go back to the previous view",
+      "tags": [
+        "back",
+        "previous",
+        "arrow"
+      ],
+      "canvas": {
+        "w": 24,
+        "h": 24
+      },
+      "sizes": [
+        16,
+        24
+      ]
+    },
+    {
+      "name": "close",
+      "meaning": "Close or dismiss the current view",
+      "tags": [
+        "close",
+        "dismiss",
+        "x"
+      ],
+      "canvas": {
+        "w": 24,
+        "h": 24
+      },
+      "sizes": [
+        16,
+        24
+      ]
+    }
+  ]
+}

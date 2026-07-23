@@ -1,0 +1,9 @@
+---
+source: strok-render/tests/golden.rs
+expression: svg
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+    <path id="outer" d="M20 20 L80 20 L80 80 L20 80Z" fill="#c8863a" />
+    <path id="inner" d="M40 40 L60 40 L60 60 L40 60Z" fill="#ff0000" />
+    <path id="donut" d="M20 80 L20 20 L80 20 L80 80ZM40 40 L40 60 L60 60 L60 40Z" fill="#c8863a" fill-rule="evenodd" />
+</svg>

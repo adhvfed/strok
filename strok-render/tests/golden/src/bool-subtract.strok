@@ -1,0 +1,48 @@
+documentsize 100x100
+shape body template=rectangle
+  round-corners 10
+  fill #3b82f6
+shape tab template=rectangle
+  fill #ff0000
+place body shape=body at=15,25 size=70x55
+place tab shape=tab at=25,15 size=28x18
+shape folder template=path
+  addpoint p0 at=15,74.5
+  addpoint p1 at=15,30.5
+  addpoint p2 at=15.1608,29.3216
+  addpoint p3 at=15.6259,28.2245
+  addpoint p4 at=16.4077,27.1911
+  addpoint p5 at=17.4844,26.297
+  addpoint p6 at=18.8163,25.6012
+  addpoint p7 at=20.332,25.1566
+  addpoint p8 at=22,25
+  addpoint p9 at=25,25
+  addpoint p10 at=25,33
+  addpoint p11 at=53,33
+  addpoint p12 at=53,25
+  addpoint p13 at=78,25
+  addpoint p14 at=79.668,25.1566
+  addpoint p15 at=81.1837,25.6012
+  addpoint p16 at=82.5156,26.297
+  addpoint p17 at=83.5923,27.1911
+  addpoint p18 at=84.3741,28.2245
+  addpoint p19 at=84.8392,29.3216
+  addpoint p20 at=85,30.5
+  addpoint p21 at=85,74.5
+  addpoint p22 at=84.8392,75.6784
+  addpoint p23 at=84.3741,76.7755
+  addpoint p24 at=83.5923,77.8089
+  addpoint p25 at=82.5156,78.703
+  addpoint p26 at=81.1837,79.3988
+  addpoint p27 at=79.668,79.8434
+  addpoint p28 at=78,80
+  addpoint p29 at=22,80
+  addpoint p30 at=20.332,79.8434
+  addpoint p31 at=18.8163,79.3988
+  addpoint p32 at=17.4844,78.703
+  addpoint p33 at=16.4077,77.8089
+  addpoint p34 at=15.6259,76.7755
+  addpoint p35 at=15.1608,75.6784
+  close
+place folder shape=folder at=0,0
+  fill #2563eb

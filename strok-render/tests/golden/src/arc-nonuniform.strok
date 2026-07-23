@@ -1,0 +1,16 @@
+# Canary: a circular arc under a genuinely NON-uniform placement (sx != sy).
+# This is the Cause B fixture. Natural geometry bbox is 60 wide × 30 tall; placed
+# at 80×30 the x-scale (1.333) differs from the y-scale (1.0). The OLD code emitted
+# `A {30·sx} {30·sy} 0 …` = a distorted ellipse arc; C2's E1.5a fix converts the
+# arc to cubic Béziers in local space and transforms them, so the rendered curve is
+# the faithful affine image of a circle (no `A` command remains). Locked here.
+documentsize 100x100
+
+shape sweep template=path
+  addpoint a at=20,70
+  addpoint b at=80,70 mode=arc rx=30 ry=30 bulge=left
+  fill none
+  stroke #8c4a2a
+  stroke-width 6
+
+place sweep shape=sweep at=10,10 size=80x30

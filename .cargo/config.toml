@@ -1,0 +1,4 @@
+# `cargo xtask <task>` runs the local gate runner crate (xtask/). Used by
+# `just gate` and directly. See CLAUDE.md.
+[alias]
+xtask = "run --quiet --package xtask --"

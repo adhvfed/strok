@@ -1,0 +1,11 @@
+# Canary: per-corner radius (E2.6). Top corners rounded, bottom corners sharp —
+# the classic tab/card top. Locks per-corner arc output vs sharp corners.
+documentsize 100x100
+
+shape card template=rectangle
+  round-corners tl=20 tr=20 br=0 bl=0
+  fill #c8863a
+  stroke #1a1a1a
+  stroke-width 2
+
+place card shape=card at=12,20 size=76x60

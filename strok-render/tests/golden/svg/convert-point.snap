@@ -1,0 +1,7 @@
+---
+source: strok-render/tests/golden.rs
+expression: svg
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+    <path id="kite" d="M50 12 C61.6667 24.6667, 73.3333 37.3333, 85 50 A51.6624 51.6624 0 0 1 50 88 L15 50Z" fill="#c8863a" stroke="#1a1a1a" stroke-width="2" />
+</svg>

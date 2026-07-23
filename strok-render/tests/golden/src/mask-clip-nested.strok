@@ -1,0 +1,15 @@
+# C4 E2.4: alpha/luminance mask + clip + nesting.
+# Outer group masks (soft luminance gate) a nested group that clips a photo rect.
+documentsize 100x100
+
+shape gate template=ellipse
+  fill #ffffff
+shape window template=rectangle
+  round-corners 12
+  fill #ffffff
+shape photo template=rectangle
+  fill linear(top, bottom, #4488cc, #c8863a)
+
+group framed mask=gate
+  group inner clip=window
+    place pic shape=photo at=10,10 size=80x80

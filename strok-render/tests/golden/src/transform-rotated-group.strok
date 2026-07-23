@@ -1,0 +1,12 @@
+# C4 E2.3: a rotated group whose child is placed RelativeTo a member.
+# Locks correct-bbox-under-transform: the dot rides the rotated bar's right edge.
+documentsize 100x100
+
+shape bar template=rectangle
+  fill #c8863a
+shape dot template=ellipse
+  fill #1a1a1a
+
+group dial at=50,50 rotation=30
+  place base shape=bar at=-30,-8 size=60x16
+  place tip shape=dot at=base.right size=10x10

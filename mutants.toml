@@ -1,0 +1,33 @@
+# cargo-mutants config (E1.6). Scope the mutation run to the geometry / parse /
+# resolve hot paths — the `d`-emit + geometry math + DSL parse/emit that the
+# E1.3 round-trip, property and golden tests are designed to kill. Running the
+# whole tree would be slow and noisy; these are the files where a surviving
+# mutant is a real test gap.
+#
+# Budget + baseline are recorded in CLAUDE.md ("Mutation testing"). CI runs this
+# nightly (not per-PR — it is slow). `just gate` runs a fast smoke (a tiny
+# sample) so the wiring can't rot.
+examine_globs = [
+    "strok-core/src/path_point.rs",
+    "strok-core/src/path_ops.rs",
+    "strok-core/src/resolve.rs",
+    "strok-core/src/dsl_parse.rs",
+    "strok-core/src/dsl_emit.rs",
+    "strok-core/src/shape.rs",
+    # C3 (E2.1/E2.2) vector ops — boolean / stroke-outline / offset geometry,
+    # killed by the area-identity + offset properties and the boolean goldens.
+    "strok-core/src/bool_ops.rs",
+    "strok-core/src/stroke_outline.rs",
+    # C4 (E2.3) affine algebra — compose/apply/rotate/skew/transform_bbox, killed
+    # by the attrs unit tests + the transform-bbox/associativity properties.
+    "strok-core/src/attrs.rs",
+]
+
+# Only the core crate's own tests exercise this geometry; running the whole
+# workspace test suite per mutant is wasteful.
+test_package = ["strok-core"]
+
+# A generous per-mutant timeout: the core test suite is fast (<1s) but mutants
+# can introduce hangs (e.g. an inverted loop bound). Cap them.
+timeout_multiplier = 4.0
+minimum_test_timeout = 30

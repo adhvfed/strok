@@ -1,0 +1,21 @@
+documentsize 100x100
+shape outer template=rectangle
+  fill #c8863a
+shape inner template=rectangle
+  fill #ff0000
+place outer shape=outer at=20,20 size=60x60
+place inner shape=inner at=40,40 size=20x20
+shape donut template=path
+  addpoint p0 at=20,80
+  addpoint p1 at=20,20
+  addpoint p2 at=80,20
+  addpoint p3 at=80,80
+  subpath
+  addpoint p4 at=40,40
+  addpoint p5 at=40,60
+  addpoint p6 at=60,60
+  addpoint p7 at=60,40
+  close
+  fill-rule even-odd
+place donut shape=donut at=0,0
+  fill #c8863a

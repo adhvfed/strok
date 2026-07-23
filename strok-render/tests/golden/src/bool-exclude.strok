@@ -1,0 +1,24 @@
+documentsize 100x100
+shape p template=rectangle
+  fill #16a34a
+shape q template=rectangle
+  fill #16a34a
+place p shape=p at=20,20 size=40x40
+place q shape=q at=40,40 size=40x40
+shape xor template=path
+  addpoint p0 at=20,60
+  addpoint p1 at=20,20
+  addpoint p2 at=60,20
+  addpoint p3 at=60,40
+  addpoint p4 at=40,40
+  addpoint p5 at=40,60
+  subpath
+  addpoint p6 at=40,80
+  addpoint p7 at=40,60
+  addpoint p8 at=60,60
+  addpoint p9 at=60,40
+  addpoint p10 at=80,40
+  addpoint p11 at=80,80
+  close
+place xor shape=xor at=0,0
+  fill #16a34a

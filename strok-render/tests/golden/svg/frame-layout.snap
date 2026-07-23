@@ -1,0 +1,11 @@
+---
+source: strok-render/tests/golden.rs
+expression: svg
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200">
+    <g id="card" transform="translate(0 0)">
+      <rect x="0" y="0" width="320" height="200" rx="16" />
+      <path id="dot" d="M64 40 C77.2548 40, 88 50.7452, 88 64 C88 77.2548, 77.2548 88, 64 88 C50.7452 88, 40 77.2548, 40 64 C40 50.7452, 50.7452 40, 64 40Z" />
+      <path id="dot2" d="M164 40 C177.255 40, 188 50.7452, 188 64 C188 77.2548, 177.255 88, 164 88 C150.745 88, 140 77.2548, 140 64 C140 50.7452, 150.745 40, 164 40Z" />
+    </g>
+</svg>

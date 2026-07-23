@@ -1,0 +1,31 @@
+documentsize 100x100
+shape circ template=ellipse
+  fill #7c3aed
+shape sq template=rectangle
+  fill #ff0000
+place circ shape=circ at=20,20 size=50x50
+place sq shape=sq at=40,40 size=40x40
+shape lens template=path
+  addpoint p0 at=40,69.4736
+  addpoint p1 at=40,40
+  addpoint p2 at=69.4736,40
+  addpoint p3 at=69.8346,42.1262
+  addpoint p4 at=70,45
+  addpoint p5 at=69.8346,47.8738
+  addpoint p6 at=69.3695,50.6135
+  addpoint p7 at=68.6037,53.2561
+  addpoint p8 at=67.5209,55.8656
+  addpoint p9 at=66.1738,58.2997
+  addpoint p10 at=64.549,60.584
+  addpoint p11 at=62.6777,62.6777
+  addpoint p12 at=60.584,64.549
+  addpoint p13 at=58.2997,66.1738
+  addpoint p14 at=55.8656,67.5209
+  addpoint p15 at=53.2561,68.6037
+  addpoint p16 at=50.6135,69.3695
+  addpoint p17 at=47.8738,69.8346
+  addpoint p18 at=45,70
+  addpoint p19 at=42.1262,69.8346
+  close
+place lens shape=lens at=0,0
+  fill #7c3aed

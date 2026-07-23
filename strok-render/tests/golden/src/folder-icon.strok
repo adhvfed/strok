@@ -1,0 +1,16 @@
+# A 24px outline folder icon using currentColor and geometry-only paths.
+documentsize 24x24
+
+shape body template=path
+  addpoint a at=3,7
+  addpoint b at=3,19 mode=arc rx=2 ry=2 bulge=right
+  addpoint c at=21,19
+  addpoint d at=21,9 mode=arc rx=2 ry=2 bulge=right
+  addpoint e at=11,9
+  addpoint f at=9,7
+  close
+  fill none
+  stroke currentColor
+  stroke-width 2
+
+place body shape=body at=0,0 size=24x24

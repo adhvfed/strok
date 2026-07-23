@@ -1,0 +1,23 @@
+# Slice 0 demo source for `strok emit`.
+# Geometry-only today (UX-primitive `component`/`frame` DSL is design-doc §5).
+# Tokens here flow to: the inlined SVG (resolved) AND `strok emit tailwind`.
+documentsize 160x48
+
+palette
+  accent #c8863a
+  ink #1a1a1a
+  surface #faf6f0
+
+shape pill template=rectangle
+  round-corners 10
+  fill $accent
+
+shape label template=text
+  content "Click me"
+  font-size 18
+  font-family "Georgia"
+  fill $surface
+  text-anchor middle
+
+place bg shape=pill at=0,0 size=160x48
+place text shape=label at=80,30

@@ -1,0 +1,21 @@
+# Canary: a currentColor icon. Kept verbatim in SVG; the PNG comparator
+# substitutes a concrete ink (default black) at raster time.
+documentsize 24x24
+
+shape line template=path
+  addpoint a at=4,12
+  addpoint b at=20,12
+  fill none
+  stroke currentColor
+  stroke-width 2
+
+shape arrow template=path
+  addpoint a at=14,6
+  addpoint b at=20,12
+  addpoint c at=14,18
+  fill none
+  stroke currentColor
+  stroke-width 2
+
+place line shape=line at=0,0 size=24x24
+place arrow shape=arrow at=0,0 size=24x24

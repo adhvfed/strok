@@ -1,0 +1,71 @@
+documentsize 900x420
+
+use "std/figures" as fig
+use "std/arrows" as arr
+use "std/bubbles" as bub
+use "std/devices" as dev
+use "std/furniture" as fur
+
+shape bg template=rectangle
+  fill #f4f1ea
+place bg shape=bg at=0,0 size=900x420
+
+# --- figures row ---
+place p1 shape=fig.person-standing at=20,20 size=40x100
+  fill #2d5a1e
+place p2 shape=fig.person-pointing at=80,20 size=40x100
+  fill #2d5a1e
+place p3 shape=fig.person-sitting at=140,20 size=40x100
+  fill #2d5a1e
+place p4 shape=fig.person-walking at=200,20 size=40x100
+  fill #2d5a1e
+place p5 shape=fig.head-side at=260,20 size=40x40
+  fill #2d5a1e
+
+# --- arrows row ---
+place a1 shape=arr.arrow-right at=340,40 size=60x24
+  fill #c8863a
+place a2 shape=arr.arrow-curved at=420,20 size=48x48
+  fill none
+  stroke #c8863a
+  stroke-width 3
+place a3 shape=arr.arrow-double at=480,40 size=60x24
+  fill #c8863a
+place a4 shape=arr.chevron at=560,32 size=24x24
+  fill none
+  stroke #c8863a
+  stroke-width 3
+
+# --- bubbles row ---
+place b1 shape=bub.speech-bubble at=340,110 size=80x60
+  fill #3b82f6
+place b2 shape=bub.thought-bubble at=430,100 size=80x64
+  fill #3b82f6
+place b3 shape=bub.callout-rounded at=520,110 size=80x56
+  fill #3b82f6
+place b4 shape=bub.banner-ribbon at=610,120 size=90x28
+  fill #b23b3b
+
+# --- devices row ---
+place d1 shape=dev.phone at=20,140 size=40x76
+  fill #333333
+place d2 shape=dev.laptop at=80,160 size=84x56
+  fill #333333
+place d3 shape=dev.browser-window at=180,150 size=80x60
+  fill #333333
+place d4 shape=dev.projector-screen at=280,148 size=80x64
+  fill #333333
+
+# --- furniture row ---
+place f1 shape=fur.table at=20,260 size=80x48
+  fill #8a5a3b
+place f2 shape=fur.chair-side at=120,252 size=36x56
+  fill #8a5a3b
+place f3 shape=fur.plant at=170,252 size=36x56
+  fill #3b7d3b
+place f4 shape=fur.whiteboard at=220,248 size=80x60
+  fill #dddddd
+  stroke #999999
+  stroke-width 1
+place f5 shape=fur.sticky-note at=310,276 size=32x32
+  fill #f4d35e

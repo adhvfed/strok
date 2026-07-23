@@ -1,0 +1,189 @@
+---
+source: strok-cli/src/mcp.rs
+expression: catalog.to_string_pretty()
+---
+[
+  {
+    "name": "guide",
+    "description": "Read the visual-quality workflow before authoring an icon, logo, or diagram. Covers style selection, geometry/text traps, and required review sizes.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "topic": {
+          "type": "string",
+          "description": "Guide topic: icon, logo, or diagram."
+        }
+      },
+      "required": [
+        "topic"
+      ]
+    }
+  },
+  {
+    "name": "new",
+    "description": "Create a new Strøk document and return its DSL source. For icons, read the guide then choose an explicit visual profile.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "size": {
+          "type": "string",
+          "description": "Canvas size as WxH (default 800x800)."
+        },
+        "profile": {
+          "type": "string",
+          "description": "Optional profile: icon-outline-round, icon-outline-angular, icon-solid, or icon-mixed. `icon` is the round-outline alias."
+        }
+      },
+      "required": []
+    }
+  },
+  {
+    "name": "exec",
+    "description": "Append a raw DSL line to a document and return the new source. The result is validated by re-parsing.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "The .strok document as DSL text."
+        },
+        "line": {
+          "type": "string",
+          "description": "The DSL line to append."
+        }
+      },
+      "required": [
+        "source",
+        "line"
+      ]
+    }
+  },
+  {
+    "name": "render",
+    "description": "Render a document to PNG, returned as an inline image. Optional width/height/color (for currentColor) and bg.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "The .strok document as DSL text."
+        },
+        "width": {
+          "type": "integer",
+          "description": "Render width in pixels."
+        },
+        "height": {
+          "type": "integer",
+          "description": "Render height in pixels."
+        },
+        "color": {
+          "type": "string",
+          "description": "Concrete color substituted for currentColor."
+        },
+        "bg": {
+          "type": "string",
+          "description": "Background color (e.g. #ffffff)."
+        }
+      },
+      "required": [
+        "source"
+      ]
+    }
+  },
+  {
+    "name": "inspect",
+    "description": "Structural snapshot of a document as JSON (detail: full|structural|summary).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "The .strok document as DSL text."
+        },
+        "detail": {
+          "type": "string",
+          "description": "full | structural | summary (default structural)."
+        }
+      },
+      "required": [
+        "source"
+      ]
+    }
+  },
+  {
+    "name": "query",
+    "description": "Query a document by region or overlap, returned as JSON. Provide either box (x,y,w,h) or overlaps (an element id).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "The .strok document as DSL text."
+        },
+        "box": {
+          "type": "string",
+          "description": "Region as x,y,w,h."
+        },
+        "overlaps": {
+          "type": "string",
+          "description": "Element id to find overlaps of."
+        }
+      },
+      "required": [
+        "source"
+      ]
+    }
+  },
+  {
+    "name": "relate",
+    "description": "Describe the spatial relation between two placed elements, as JSON.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "The .strok document as DSL text."
+        },
+        "a": {
+          "type": "string",
+          "description": "First element name."
+        },
+        "b": {
+          "type": "string",
+          "description": "Second element name."
+        }
+      },
+      "required": [
+        "source",
+        "a",
+        "b"
+      ]
+    }
+  },
+  {
+    "name": "measure",
+    "description": "Measure distance / gap / alignment between two placed elements, as JSON.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "The .strok document as DSL text."
+        },
+        "a": {
+          "type": "string",
+          "description": "First element name."
+        },
+        "b": {
+          "type": "string",
+          "description": "Second element name."
+        }
+      },
+      "required": [
+        "source",
+        "a",
+        "b"
+      ]
+    }
+  }
+]

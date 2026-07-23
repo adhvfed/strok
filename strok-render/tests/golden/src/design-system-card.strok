@@ -1,0 +1,28 @@
+# Design-system card golden (frame + real text + an icon glyph).
+# Exercises the frame-to-SVG preview path, a text place, and a placed icon.
+documentsize 240x120
+
+palette
+  surface #0f1115
+  accent #5b8def
+  text-primary #e6eaf0
+
+tokens
+  radius.md 8
+  font.body "Inter"
+
+shape glyph template=ellipse
+  fill $accent
+
+shape title template=text
+  content "Strøk UI"
+  font-size 16
+  font-family $font.body
+  fill $text-primary
+  text-anchor start
+
+frame card layout=flex(row, gap=12, padding=16, align=center) size=240x120 at=0,0
+  fill $surface
+  round-corners $radius.md
+  place icon shape=glyph at=16,52 size=16x16
+  place heading shape=title at=44,58

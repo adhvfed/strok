@@ -1,0 +1,75 @@
+documentsize 100x100
+shape a template=ellipse
+  fill #3b82f6
+shape b template=ellipse
+  fill #3b82f6
+place a shape=a at=20,30 size=40x40
+place b shape=b at=40,30 size=40x40
+shape blob template=path
+  addpoint p0 at=20.1779,52.6718
+  addpoint p1 at=20,50
+  addpoint p2 at=20.1779,47.3282
+  addpoint p3 at=20.681,44.799
+  addpoint p4 at=21.5242,42.3321
+  addpoint p5 at=22.6783,39.9941
+  addpoint p6 at=24.1282,37.8298
+  addpoint p7 at=25.8579,35.8579
+  addpoint p8 at=27.8298,34.1282
+  addpoint p9 at=29.9941,32.6783
+  addpoint p10 at=32.3321,31.5242
+  addpoint p11 at=34.799,30.681
+  addpoint p12 at=37.3282,30.1779
+  addpoint p13 at=40,30
+  addpoint p14 at=42.6718,30.1779
+  addpoint p15 at=45.201,30.681
+  addpoint p16 at=47.6679,31.5242
+  addpoint p17 at=50,32.6754
+  addpoint p18 at=52.3321,31.5242
+  addpoint p19 at=54.799,30.681
+  addpoint p20 at=57.3282,30.1779
+  addpoint p21 at=60,30
+  addpoint p22 at=62.6718,30.1779
+  addpoint p23 at=65.201,30.681
+  addpoint p24 at=67.6679,31.5242
+  addpoint p25 at=70.0059,32.6783
+  addpoint p26 at=72.1702,34.1282
+  addpoint p27 at=74.1421,35.8579
+  addpoint p28 at=75.8718,37.8298
+  addpoint p29 at=77.3217,39.9941
+  addpoint p30 at=78.4758,42.3321
+  addpoint p31 at=79.319,44.799
+  addpoint p32 at=79.8221,47.3282
+  addpoint p33 at=80,50
+  addpoint p34 at=79.8221,52.6718
+  addpoint p35 at=79.319,55.201
+  addpoint p36 at=78.4758,57.6679
+  addpoint p37 at=77.3217,60.0059
+  addpoint p38 at=75.8718,62.1702
+  addpoint p39 at=74.1421,64.1421
+  addpoint p40 at=72.1702,65.8718
+  addpoint p41 at=70.0059,67.3217
+  addpoint p42 at=67.6679,68.4758
+  addpoint p43 at=65.201,69.319
+  addpoint p44 at=62.6718,69.8221
+  addpoint p45 at=60,70
+  addpoint p46 at=57.3282,69.8221
+  addpoint p47 at=54.799,69.319
+  addpoint p48 at=52.3321,68.4758
+  addpoint p49 at=50,67.3246
+  addpoint p50 at=47.6679,68.4758
+  addpoint p51 at=45.201,69.319
+  addpoint p52 at=42.6718,69.8221
+  addpoint p53 at=40,70
+  addpoint p54 at=37.3282,69.8221
+  addpoint p55 at=34.799,69.319
+  addpoint p56 at=32.3321,68.4758
+  addpoint p57 at=29.9941,67.3217
+  addpoint p58 at=27.8298,65.8718
+  addpoint p59 at=25.8579,64.1421
+  addpoint p60 at=24.1282,62.1702
+  addpoint p61 at=22.6783,60.0059
+  addpoint p62 at=21.5242,57.6679
+  addpoint p63 at=20.681,55.201
+  close
+place blob shape=blob at=0,0
+  fill #3b82f6

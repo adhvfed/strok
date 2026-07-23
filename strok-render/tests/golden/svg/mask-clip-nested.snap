@@ -1,0 +1,16 @@
+---
+source: strok-render/tests/golden.rs
+expression: svg
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+  <defs>
+    <mask id="mask-framed"><path d="M50 0 C77.6142 0, 100 22.3858, 100 50 C100 77.6142, 77.6142 100, 50 100 C22.3858 100, 0 77.6142, 0 50 C0 22.3858, 22.3858 0, 50 0Z" fill="#ffffff"/></mask>
+    <clipPath id="clip-inner"><path d="M0 12 A12 12 0 0 1 12 0 L88 0 A12 12 0 0 1 100 12 L100 88 A12 12 0 0 1 88 100 L12 100 A12 12 0 0 1 0 88Z"/></clipPath>
+    <linearGradient id="grad-pic-fill" x1="50%" y1="0%" x2="50%" y2="100%" gradientUnits="objectBoundingBox"><stop offset="0%" stop-color="#4488cc"/><stop offset="100%" stop-color="#c8863a"/></linearGradient>
+  </defs>
+    <g id="framed" mask="url(#mask-framed)">
+      <g id="inner" clip-path="url(#clip-inner)">
+        <path id="pic" d="M10 10 L90 10 L90 90 L10 90Z" fill="url(#grad-pic-fill)" />
+      </g>
+    </g>
+</svg>

@@ -1,0 +1,11 @@
+# Canary: a speech bubble = a rounded rect + a triangular tail on the bottom edge
+# (E2.6). One `notch dir=out shape=triangle` op replaces the rect + separate sharp
+# triangle path authors used to hand-compose (Feedback #3).
+documentsize 48x48
+
+shape bubble template=rectangle
+  notch edge=bottom dir=out shape=triangle pos=0.32 width=8 depth=8
+  round-corners tl=6 tr=6 br=6 bl=6
+  fill #3b82f6
+
+place bubble shape=bubble at=6,6 size=36x26

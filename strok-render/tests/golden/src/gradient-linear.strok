@@ -1,0 +1,7 @@
+# Canary: a linear gradient fill.
+documentsize 100x100
+
+shape panel template=rectangle
+  fill linear(top, bottom, #ff5a3c, #3c5aff)
+
+place panel shape=panel at=10,10 size=80x80

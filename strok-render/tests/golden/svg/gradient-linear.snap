@@ -1,0 +1,10 @@
+---
+source: strok-render/tests/golden.rs
+expression: svg
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad-panel-fill" x1="50%" y1="0%" x2="50%" y2="100%" gradientUnits="objectBoundingBox"><stop offset="0%" stop-color="#ff5a3c"/><stop offset="100%" stop-color="#3c5aff"/></linearGradient>
+  </defs>
+    <path id="panel" d="M10 10 L90 10 L90 90 L10 90Z" fill="url(#grad-panel-fill)" />
+</svg>

@@ -1,0 +1,205 @@
+# Standard library: figures — flat geometric people.
+#
+# Every shape is authored in a local box (see the @meaning line for its
+# canvas) with its top-left at 0,0. Each figure is ONE `template=path` shape
+# built from several `subpath` contours (head / torso / limbs) so it survives
+# the `use "std/…"` import path (only shapes are merged across modules — see
+# strok-core/src/dsl_parse.rs `resolve_imports`).
+#
+# Geometry-only: no fill/stroke is set here. Placements decide style, e.g.
+#   place p shape=figures.person-standing at=0,0 size=40x100
+#     fill #2d5a1e
+#
+# Heads are true circles — four cardinal catmull-rom points at the circle
+# tension (the same construction `template=ellipse` uses internally); the
+# closing segment inherits the first point's mode, so the whole ring is smooth.
+# Torsos have arc-rounded shoulders. Vertical arms are pills (semicircle caps). Curves
+# survive because subpath contours are now curve-aware per point (EXP-4).
+# Arc mode is only ever applied to a SHORT corner/cap segment — never a long
+# edge (a long chord with a small radius blows the arc up into a lens).
+
+# @meaning A person standing upright, arms at sides. Canvas 40x100.
+# @tags person, human, figure, standing, people, character
+shape person-standing template=path
+  addpoint head-top at=20,4 mode=catmull-rom tension=-0.66
+  addpoint head-right at=28,12 after=head-top mode=catmull-rom tension=-0.66
+  addpoint head-bottom at=20,20 after=head-right mode=catmull-rom tension=-0.66
+  addpoint head-left at=12,12 after=head-bottom mode=catmull-rom tension=-0.66
+  close
+  subpath
+  addpoint t-bl at=13,56
+  addpoint t-ls at=13,27
+  addpoint t-tl at=16,24 mode=arc rx=3 ry=3 bulge=left
+  addpoint t-tr at=24,24
+  addpoint t-rs at=27,27 mode=arc rx=3 ry=3 bulge=left
+  addpoint t-br at=27,56
+  close
+  subpath
+  addpoint la-tl at=6,28
+  addpoint la-tr at=10,28 mode=arc rx=2 ry=2 bulge=left
+  addpoint la-br at=10,50
+  addpoint la-bl at=6,50 mode=arc rx=2 ry=2 bulge=left
+  close
+  subpath
+  addpoint ra-tl at=30,28
+  addpoint ra-tr at=34,28 mode=arc rx=2 ry=2 bulge=left
+  addpoint ra-br at=34,50
+  addpoint ra-bl at=30,50 mode=arc rx=2 ry=2 bulge=left
+  close
+  subpath
+  addpoint ll-tl at=14,56
+  addpoint ll-tr at=19,56
+  addpoint ll-br at=19,96
+  addpoint ll-bl at=14,96
+  close
+  subpath
+  addpoint rl-tl at=21,56
+  addpoint rl-tr at=26,56
+  addpoint rl-br at=26,96
+  addpoint rl-bl at=21,96
+  close
+
+# @meaning A person standing with one arm pointing horizontally out to the
+#   right (presenting, indicating). Canvas 40x100.
+# @tags person, human, figure, pointing, presenting, gesture, people
+shape person-pointing template=path
+  addpoint head-top at=20,4 mode=catmull-rom tension=-0.66
+  addpoint head-right at=28,12 after=head-top mode=catmull-rom tension=-0.66
+  addpoint head-bottom at=20,20 after=head-right mode=catmull-rom tension=-0.66
+  addpoint head-left at=12,12 after=head-bottom mode=catmull-rom tension=-0.66
+  close
+  subpath
+  addpoint t-bl at=13,56
+  addpoint t-ls at=13,27
+  addpoint t-tl at=16,24 mode=arc rx=3 ry=3 bulge=left
+  addpoint t-tr at=24,24
+  addpoint t-rs at=27,27 mode=arc rx=3 ry=3 bulge=left
+  addpoint t-br at=27,56
+  close
+  subpath
+  addpoint la-tl at=6,28
+  addpoint la-tr at=10,28 mode=arc rx=2 ry=2 bulge=left
+  addpoint la-br at=10,50
+  addpoint la-bl at=6,50 mode=arc rx=2 ry=2 bulge=left
+  close
+  subpath
+  addpoint pa-tl at=27,25
+  addpoint pa-tr at=38,25
+  addpoint pa-br at=38,31 mode=arc rx=3 ry=3 bulge=left
+  addpoint pa-bl at=27,31
+  close
+  subpath
+  addpoint ll-tl at=14,56
+  addpoint ll-tr at=19,56
+  addpoint ll-br at=19,96
+  addpoint ll-bl at=14,96
+  close
+  subpath
+  addpoint rl-tl at=21,56
+  addpoint rl-tr at=26,56
+  addpoint rl-br at=26,96
+  addpoint rl-bl at=21,96
+  close
+
+# @meaning A person seated on an implied chair, legs bent at the knee.
+#   Canvas 40x100.
+# @tags person, human, figure, sitting, seated, people, chair
+shape person-sitting template=path
+  addpoint head-top at=20,4 mode=catmull-rom tension=-0.66
+  addpoint head-right at=28,12 after=head-top mode=catmull-rom tension=-0.66
+  addpoint head-bottom at=20,20 after=head-right mode=catmull-rom tension=-0.66
+  addpoint head-left at=12,12 after=head-bottom mode=catmull-rom tension=-0.66
+  close
+  subpath
+  addpoint t-bl at=13,52
+  addpoint t-ls at=13,27
+  addpoint t-tl at=16,24 mode=arc rx=3 ry=3 bulge=left
+  addpoint t-tr at=24,24
+  addpoint t-rs at=27,27 mode=arc rx=3 ry=3 bulge=left
+  addpoint t-br at=27,52
+  close
+  subpath
+  addpoint la-tl at=6,28
+  addpoint la-tr at=10,28 mode=arc rx=2 ry=2 bulge=left
+  addpoint la-br at=10,46
+  addpoint la-bl at=6,46 mode=arc rx=2 ry=2 bulge=left
+  close
+  subpath
+  addpoint ra-tl at=30,28
+  addpoint ra-tr at=34,28 mode=arc rx=2 ry=2 bulge=left
+  addpoint ra-br at=34,46
+  addpoint ra-bl at=30,46 mode=arc rx=2 ry=2 bulge=left
+  close
+  subpath
+  addpoint thigh-tl at=11,52
+  addpoint thigh-tr at=29,52
+  addpoint thigh-br at=29,62
+  addpoint thigh-bl at=11,62
+  close
+  subpath
+  addpoint ll-tl at=12,62
+  addpoint ll-tr at=17,62
+  addpoint ll-br at=17,92
+  addpoint ll-bl at=12,92
+  close
+  subpath
+  addpoint rl-tl at=23,62
+  addpoint rl-tr at=28,62
+  addpoint rl-br at=28,92
+  addpoint rl-bl at=23,92
+  close
+
+# @meaning A person mid-stride, legs staggered fore and aft (walking,
+#   in motion). Canvas 40x100.
+# @tags person, human, figure, walking, motion, stride, people
+shape person-walking template=path
+  addpoint head-top at=21,4 mode=catmull-rom tension=-0.66
+  addpoint head-right at=29,12 after=head-top mode=catmull-rom tension=-0.66
+  addpoint head-bottom at=21,20 after=head-right mode=catmull-rom tension=-0.66
+  addpoint head-left at=13,12 after=head-bottom mode=catmull-rom tension=-0.66
+  close
+  subpath
+  addpoint t-bl at=14,56
+  addpoint t-ls at=14,27
+  addpoint t-tl at=17,24 mode=arc rx=3 ry=3 bulge=left
+  addpoint t-tr at=25,24
+  addpoint t-rs at=28,27 mode=arc rx=3 ry=3 bulge=left
+  addpoint t-br at=28,56
+  close
+  subpath
+  addpoint la-tl at=6,28
+  addpoint la-tr at=10,27
+  addpoint la-br at=14,50
+  addpoint la-bl at=10,51
+  close
+  subpath
+  addpoint ra-tl at=32,27
+  addpoint ra-tr at=36,28
+  addpoint ra-br at=32,51
+  addpoint ra-bl at=28,50
+  close
+  subpath
+  addpoint ll-tl at=9,57
+  addpoint ll-tr at=15,58
+  addpoint ll-br at=10,96
+  addpoint ll-bl at=5,95
+  close
+  subpath
+  addpoint rl-tl at=22,58
+  addpoint rl-tr at=28,57
+  addpoint rl-br at=33,95
+  addpoint rl-bl at=28,96
+  close
+
+# @meaning A head in profile (side view) — face facing right. Canvas 40x40.
+# @tags person, human, head, profile, side, face, portrait
+shape head-side template=path
+  addpoint crown at=16,4
+  addpoint back at=6,10 after=crown mode=catmull-rom tension=0.1
+  addpoint neck-back at=8,34 after=back mode=catmull-rom tension=0.1
+  addpoint chin at=20,36 after=neck-back mode=catmull-rom tension=0.1
+  addpoint jaw at=27,28 after=chin mode=catmull-rom tension=0.1
+  addpoint nose at=32,18 after=jaw mode=catmull-rom tension=0.3
+  addpoint brow at=26,10 after=nose mode=catmull-rom tension=0.1
+  close
+  smooth crown tension=0.1

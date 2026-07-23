@@ -1,0 +1,7 @@
+---
+source: strok-render/tests/golden.rs
+expression: svg
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+    <path id="bubble" d="M6 11.1509 C6 8.30616, 8.68629 6, 12 6 L36 6 C39.3137 6, 42 8.30616, 42 11.1509 L42 21.9042 C42 23.6869, 40.3166 25.1321, 38.24 25.1321 L34.48 25.1321 L30.48 32 L26.48 25.1321 L12 25.1321 C8.68629 25.1321, 6 22.8259, 6 19.9811Z" fill="#3b82f6" />
+</svg>

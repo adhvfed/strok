@@ -1,0 +1,17 @@
+documentsize 320x200
+
+palette
+  surface #faf6f0
+  accent #c8863a
+
+tokens
+  radius.md 16
+
+shape dot template=ellipse
+  fill $accent
+
+frame card layout=flex(col, gap=12, padding=16) size=320x200 at=0,0
+  fill $surface
+  round-corners 16
+  place dot shape=dot at=40,40 size=48x48
+  place dot2 shape=dot at=140,40 size=48x48

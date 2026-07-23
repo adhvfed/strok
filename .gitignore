@@ -1,0 +1,13 @@
+/target
+.DS_Store
+
+# local design scratch (logo iterations) — keep local, do not track
+design-sketches/
+
+# fuzzing + mutation testing generated output
+fuzz/target/
+fuzz/corpus/
+fuzz/artifacts/
+mutants.out/
+mutants.out.old/
+.claude/worktrees/

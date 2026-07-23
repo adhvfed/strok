@@ -1,0 +1,113 @@
+# Standard library: devices.
+#
+# Each device is one filled shape (body) with cut-out details carried as
+# separate subpath contours (screen, camera dot, browser dots) so the whole
+# thing stays a single `path` shape — place with `fill` (and `fill-rule
+# even-odd` is already set where a subpath is a true hole).
+
+# @meaning A smartphone silhouette, rounded-rect body with a screen inset
+#   and a home indicator. Canvas 40x76.
+# @tags phone, smartphone, mobile, device, screen
+shape phone template=rectangle
+  round-corners tl=8 tr=8 br=8 bl=8
+  fill-rule even-odd
+  subpath
+  addpoint scr-tl at=4,8
+  addpoint scr-tr at=36,8
+  addpoint scr-br at=36,64
+  addpoint scr-bl at=4,64
+  close
+  round-corners scr-tl=2 scr-tr=2 scr-br=2 scr-bl=2
+  subpath
+  addpoint hind1 at=15.5,71.5
+  addpoint hind2 at=15.939,70.439 after=hind1
+  addpoint hind3 at=17.0,70.0 after=hind2
+  addpoint hind4 at=18.061,70.439 after=hind3
+  addpoint hind5 at=18.5,71.5 after=hind4
+  addpoint hind6 at=18.061,72.561 after=hind5
+  addpoint hind7 at=17.0,73.0 after=hind6
+  addpoint hind8 at=15.939,72.561 after=hind7
+  close
+
+# @meaning A laptop — rounded-rect screen half sitting on a wider trapezoid
+#   base/keyboard half, as one silhouette. Canvas 84x56.
+# @tags laptop, computer, device, notebook, screen, keyboard
+shape laptop template=path
+  addpoint s-tl at=12,0
+  addpoint s-tr at=72,0
+  addpoint s-br at=72,40
+  addpoint s-bl at=12,40
+  close
+  round-corners s-tl=3 s-tr=3 s-br=0 s-bl=0
+  subpath
+  addpoint b-tl at=0,44
+  addpoint b-tr at=84,44
+  addpoint b-br at=78,52
+  addpoint b-bl at=6,52
+  close
+  round-corners b-br=3 b-bl=3
+
+# @meaning A browser window chrome — rounded outer frame with three
+#   traffic-light dots punched near the top-left (title bar). Canvas 80x60.
+# @tags browser, window, app, ui, chrome, tab
+shape browser-window template=path
+  fill-rule even-odd
+  addpoint tl at=0,0
+  addpoint tr at=80,0
+  addpoint br at=80,60
+  addpoint bl at=0,60
+  close
+  round-corners tl=6 tr=6 br=6 bl=6
+  subpath
+  addpoint dot11 at=3.0,7.0
+  addpoint dot12 at=3.879,4.879 after=dot11
+  addpoint dot13 at=6.0,4.0 after=dot12
+  addpoint dot14 at=8.121,4.879 after=dot13
+  addpoint dot15 at=9.0,7.0 after=dot14
+  addpoint dot16 at=8.121,9.121 after=dot15
+  addpoint dot17 at=6.0,10.0 after=dot16
+  addpoint dot18 at=3.879,9.121 after=dot17
+  close
+  subpath
+  addpoint dot21 at=11.0,7.0
+  addpoint dot22 at=11.879,4.879 after=dot21
+  addpoint dot23 at=14.0,4.0 after=dot22
+  addpoint dot24 at=16.121,4.879 after=dot23
+  addpoint dot25 at=17.0,7.0 after=dot24
+  addpoint dot26 at=16.121,9.121 after=dot25
+  addpoint dot27 at=14.0,10.0 after=dot26
+  addpoint dot28 at=11.879,9.121 after=dot27
+  close
+  subpath
+  addpoint dot31 at=19.0,7.0
+  addpoint dot32 at=19.879,4.879 after=dot31
+  addpoint dot33 at=22.0,4.0 after=dot32
+  addpoint dot34 at=24.121,4.879 after=dot33
+  addpoint dot35 at=25.0,7.0 after=dot34
+  addpoint dot36 at=24.121,9.121 after=dot35
+  addpoint dot37 at=22.0,10.0 after=dot36
+  addpoint dot38 at=19.879,9.121 after=dot37
+  close
+
+# @meaning A projector screen — a stand + a wide rectangular display panel
+#   (presentations, workshops, demos). Canvas 80x64.
+# @tags projector, screen, presentation, display, workshop, demo
+shape projector-screen template=path
+  addpoint p-tl at=0,0
+  addpoint p-tr at=80,0
+  addpoint p-br at=80,44
+  addpoint p-bl at=0,44
+  close
+  round-corners p-tl=2 p-tr=2
+  subpath
+  addpoint stem-l at=38,44
+  addpoint stem-r at=42,44
+  addpoint stem-br at=44,60
+  addpoint stem-bl at=36,60
+  close
+  subpath
+  addpoint base-l at=24,60
+  addpoint base-r at=56,60
+  addpoint base-br at=58,64
+  addpoint base-bl at=22,64
+  close
