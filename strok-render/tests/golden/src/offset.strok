@@ -1,0 +1,60 @@
+documentsize 100x100
+shape disc template=ellipse
+  fill #0ea5e9
+place disc shape=disc at=35,35 size=30x30
+shape grown template=path
+  addpoint p0 at=27.1755,52.8423
+  addpoint p1 at=27,50
+  addpoint p2 at=27.1755,47.1577
+  addpoint p3 at=27.6701,44.4569
+  addpoint p4 at=28.4933,41.8343
+  addpoint p5 at=29.6363,39.2976
+  addpoint p6 at=31.0627,36.9424
+  addpoint p7 at=32.7848,34.7474
+  addpoint p8 at=34.7474,32.7848
+  addpoint p9 at=36.9424,31.0627
+  addpoint p10 at=39.2976,29.6363
+  addpoint p11 at=41.8343,28.4933
+  addpoint p12 at=44.4569,27.6701
+  addpoint p13 at=47.1577,27.1755
+  addpoint p14 at=50,27
+  addpoint p15 at=52.8423,27.1755
+  addpoint p16 at=55.5431,27.6701
+  addpoint p17 at=58.1657,28.4933
+  addpoint p18 at=60.7024,29.6363
+  addpoint p19 at=63.0576,31.0627
+  addpoint p20 at=65.2526,32.7848
+  addpoint p21 at=67.2152,34.7474
+  addpoint p22 at=68.9373,36.9424
+  addpoint p23 at=70.3637,39.2976
+  addpoint p24 at=71.5067,41.8343
+  addpoint p25 at=72.3299,44.4569
+  addpoint p26 at=72.8245,47.1577
+  addpoint p27 at=73,50
+  addpoint p28 at=72.8245,52.8423
+  addpoint p29 at=72.3299,55.5431
+  addpoint p30 at=71.5067,58.1657
+  addpoint p31 at=70.3637,60.7024
+  addpoint p32 at=68.9373,63.0576
+  addpoint p33 at=67.2152,65.2526
+  addpoint p34 at=65.2526,67.2152
+  addpoint p35 at=63.0576,68.9373
+  addpoint p36 at=60.7024,70.3637
+  addpoint p37 at=58.1657,71.5067
+  addpoint p38 at=55.5431,72.3299
+  addpoint p39 at=52.8423,72.8245
+  addpoint p40 at=50,73
+  addpoint p41 at=47.1577,72.8245
+  addpoint p42 at=44.4569,72.3299
+  addpoint p43 at=41.8343,71.5067
+  addpoint p44 at=39.2976,70.3637
+  addpoint p45 at=36.9424,68.9373
+  addpoint p46 at=34.7474,67.2152
+  addpoint p47 at=32.7848,65.2526
+  addpoint p48 at=31.0627,63.0576
+  addpoint p49 at=29.6363,60.7024
+  addpoint p50 at=28.4933,58.1657
+  addpoint p51 at=27.6701,55.5431
+  close
+place grown shape=grown at=0,0
+  fill #0ea5e9

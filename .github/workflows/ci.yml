@@ -1,0 +1,112 @@
+name: CI
+
+# Fast checks run on every push and pull request. SVG snapshots are the
+# authoritative cross-platform render contract; geometry-only PNG comparisons
+# use a perceptual tolerance.
+
+on:
+  push:
+  pull_request:
+  schedule:
+    # Nightly (03:17 UTC) — runs the slow fuzz, mutation, and performance checks.
+    - cron: "17 3 * * *"
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  gate:
+    name: fmt + clippy + test + golden
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo + target
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: fmt --check
+        run: cargo fmt --all --check
+
+      - name: clippy -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: test --workspace (includes golden suite)
+        run: cargo test --workspace
+
+  audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: rustsec/audit-check@v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # Per-PR fuzz smoke: build both targets and run each for a bounded time
+  # over the seed corpus. Any panic fails the job.
+  fuzz:
+    name: fuzz (bounded)
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install nightly + cargo-fuzz
+        uses: dtolnay/rust-toolchain@nightly
+      - run: cargo install cargo-fuzz --locked
+      - name: Cache cargo + target
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            fuzz/target
+          key: ${{ runner.os }}-fuzz-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-fuzz-
+      - name: build fuzz targets
+        run: cd fuzz && cargo +nightly fuzz build
+      - name: fuzz_dsl_parse (60s)
+        run: cd fuzz && cargo +nightly fuzz run fuzz_dsl_parse -- -max_total_time=60 -timeout=10
+      - name: fuzz_roundtrip (60s)
+        run: cd fuzz && cargo +nightly fuzz run fuzz_roundtrip -- -max_total_time=60 -timeout=10
+
+  # Nightly slow checks.
+  nightly:
+    name: nightly (fuzz + mutants + perf)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Install cargo-fuzz + cargo-mutants
+        run: |
+          cargo install cargo-fuzz --locked
+          cargo install cargo-mutants --locked
+      - name: fuzz (long)
+        run: |
+          cd fuzz
+          cargo +nightly fuzz run fuzz_dsl_parse -- -max_total_time=300 -timeout=10
+          cargo +nightly fuzz run fuzz_roundtrip -- -max_total_time=300 -timeout=10
+      - name: perf budget
+        run: cargo test -p strok-core --release --test perf_budget
+      - name: mutants (diagnostic)
+        continue-on-error: true
+        # mutants.toml scopes the run. Results are diagnostic until a stable
+        # surviving-mutant budget is documented.
+        run: cargo mutants --in-place

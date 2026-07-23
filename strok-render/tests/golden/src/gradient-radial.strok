@@ -1,0 +1,7 @@
+# Canary: a radial gradient fill.
+documentsize 100x100
+
+shape orb template=ellipse
+  fill radial(center, 70%, #ffd24a, #b04a00)
+
+place orb shape=orb at=10,10 size=80x80

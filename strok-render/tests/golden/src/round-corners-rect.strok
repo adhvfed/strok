@@ -1,0 +1,10 @@
+# Canary: a round-corners rectangle. Locks the per-corner arc output.
+documentsize 100x100
+
+shape card template=rectangle
+  round-corners 16
+  fill #c8863a
+  stroke #1a1a1a
+  stroke-width 2
+
+place card shape=card at=12,20 size=76x60

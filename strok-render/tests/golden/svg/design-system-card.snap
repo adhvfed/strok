@@ -1,0 +1,11 @@
+---
+source: strok-render/tests/golden.rs
+expression: svg
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="120" viewBox="0 0 240 120">
+    <g id="card" transform="translate(0 0)">
+      <rect x="0" y="0" width="240" height="120" />
+      <path id="icon" d="M24 52 C28.4183 52, 32 55.5817, 32 60 C32 64.4183, 28.4183 68, 24 68 C19.5817 68, 16 64.4183, 16 60 C16 55.5817, 19.5817 52, 24 52Z" />
+      <text id="heading" x="44" y="58" font-size="16" font-family="Inter" text-anchor="start">Strøk UI</text>
+    </g>
+</svg>

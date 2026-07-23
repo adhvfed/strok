@@ -1,0 +1,53 @@
+documentsize 100x100
+shape wire template=path
+  stroke #1a1a1a
+  stroke-width 12
+  stroke-linecap round
+  stroke-linejoin round
+  addpoint a at=20,50
+  addpoint b at=50,20 after=a
+  addpoint c at=80,50 after=b
+place wire shape=wire at=0,0
+shape wire-filled template=path
+  addpoint p0 at=14.0373,50.6718
+  addpoint p1 at=14.0373,49.3282
+  addpoint p2 at=14.3353,48.02
+  addpoint p3 at=14.9064,46.8258
+  addpoint p4 at=15.7574,45.7574
+  addpoint p5 at=45.7574,15.7574
+  addpoint p6 at=46.8258,14.9064
+  addpoint p7 at=48.02,14.3353
+  addpoint p8 at=49.3282,14.0373
+  addpoint p9 at=50.6718,14.0373
+  addpoint p10 at=51.98,14.3353
+  addpoint p11 at=53.1742,14.9064
+  addpoint p12 at=54.2426,15.7574
+  addpoint p13 at=84.2426,45.7574
+  addpoint p14 at=85.0936,46.8258
+  addpoint p15 at=85.6647,48.02
+  addpoint p16 at=85.9627,49.3282
+  addpoint p17 at=85.9627,50.6718
+  addpoint p18 at=85.6647,51.98
+  addpoint p19 at=85.0936,53.1742
+  addpoint p20 at=84.2426,54.2426
+  addpoint p21 at=83.1742,55.0936
+  addpoint p22 at=81.98,55.6647
+  addpoint p23 at=80.6718,55.9627
+  addpoint p24 at=79.3282,55.9627
+  addpoint p25 at=78.02,55.6647
+  addpoint p26 at=76.8258,55.0936
+  addpoint p27 at=75.7574,54.2426
+  addpoint p28 at=50,28.4853
+  addpoint p29 at=24.2426,54.2426
+  addpoint p30 at=23.1742,55.0936
+  addpoint p31 at=21.98,55.6647
+  addpoint p32 at=20.6718,55.9627
+  addpoint p33 at=19.3282,55.9627
+  addpoint p34 at=18.02,55.6647
+  addpoint p35 at=16.8258,55.0936
+  addpoint p36 at=15.7574,54.2426
+  addpoint p37 at=14.9064,53.1742
+  addpoint p38 at=14.3353,51.98
+  close
+place wire-filled shape=wire-filled at=0,0
+  fill #1a1a1a

@@ -1,0 +1,11 @@
+# Canary: a text shape.
+documentsize 160x60
+
+shape label template=text
+  content "Strok"
+  font-size 32
+  font-family "Georgia"
+  fill #1a1a1a
+  text-anchor middle
+
+place label shape=label at=80,40

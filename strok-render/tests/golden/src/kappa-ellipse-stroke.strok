@@ -1,0 +1,10 @@
+# Canary: a κ-based ellipse (circle) with a stroke. Locks the Bézier-circle
+# constant output so future refactors can't silently degrade circle fidelity.
+documentsize 100x100
+
+shape ring template=ellipse
+  fill none
+  stroke #1a6cc8
+  stroke-width 6
+
+place ring shape=ring at=10,10 size=80x80

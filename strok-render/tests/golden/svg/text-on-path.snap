@@ -1,0 +1,11 @@
+---
+source: strok-render/tests/golden.rs
+expression: svg
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100">
+  <defs>
+    <path id="label-textpath" d="M20 70 A90 50 0 0 0 180 70" fill="none"/>
+  </defs>
+    <path id="arch" d="M20 70 A90 50 0 0 0 180 70" fill="none" stroke="none" />
+    <text id="label" font-size="16" font-family="Georgia" fill="#1a1a1a"><textPath href="#label-textpath">RIDE THE CURVE</textPath></text>
+</svg>

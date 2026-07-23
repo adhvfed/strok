@@ -1,0 +1,58 @@
+# Standard library: arrows.
+#
+# `arrow-right` and `arrow-double` are FILLED single-contour polygons (closed
+# path, sharp corners) — place them with a `fill` override.
+# `arrow-curved` and `chevron` are OPEN stroked paths (no fill, a visible
+# line) — place them with a `stroke` + `stroke-width` override and
+# `fill none`.
+
+# @meaning A straight arrow pointing right — shaft + triangular head as one
+#   filled polygon. Canvas 60x24.
+# @tags arrow, direction, right, next, forward, pointer
+shape arrow-right template=path
+  addpoint s1 at=0,10
+  addpoint s2 at=40,10
+  addpoint h1 at=40,2
+  addpoint h2 at=60,12 after=h1
+  addpoint h3 at=40,22 after=h2
+  addpoint s3 at=40,14 after=h3
+  addpoint s4 at=0,14 after=s3
+  close
+
+# @meaning A hooked arrow that curves from pointing down to pointing right
+#   (undo/redo, redirect, "go back then forward"). Open stroked path.
+#   Canvas 48x48.
+# @tags arrow, curved, redirect, undo, redo, hook, turn
+shape arrow-curved template=path
+  addpoint start at=10,4
+  addpoint end at=36,30 after=start mode=arc rx=26 ry=26 bulge=right
+  addpoint head-up at=27,24 after=end
+  addpoint tip at=36,30 after=head-up
+  addpoint head-down at=44,26 after=tip
+  open
+
+# @meaning A double-headed arrow — points at both ends of one shaft
+#   (bidirectional, swap, resize). Filled polygon. Canvas 60x24.
+# @tags arrow, double, bidirectional, swap, resize, both-ways
+shape arrow-double template=path
+  addpoint h1a at=0,12
+  addpoint h1b at=14,2
+  addpoint h1c at=14,9
+  addpoint h2c at=46,9
+  addpoint h2b at=46,2
+  addpoint h2a at=60,12
+  addpoint h2bb at=46,22
+  addpoint h2cc at=46,15
+  addpoint h1cc at=14,15
+  addpoint h1bb at=14,22
+  close
+
+# @meaning A single chevron / ">" mark — open stroked path, used for
+#   collapse/expand affordances, breadcrumbs, or stacked as a caret.
+#   Canvas 24x24.
+# @tags chevron, caret, expand, collapse, breadcrumb, indicator
+shape chevron template=path
+  addpoint p1 at=6,4
+  addpoint p2 at=18,12 after=p1
+  addpoint p3 at=6,20 after=p2
+  open

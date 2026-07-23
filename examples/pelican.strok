@@ -1,0 +1,645 @@
+documentsize 800x600
+
+shape sky template=rectangle
+  fill #c8e4f8
+  stroke none
+place sky shape=sky at=0,0 size=800x600
+
+shape ground template=rectangle
+  fill #8cb860
+  stroke none
+place ground shape=ground at=0,520 size=800x80
+
+shape road template=rectangle
+  fill #888888
+  stroke none
+place road shape=road at=0,530 size=800x20
+
+shape road-line template=rectangle
+  fill #dddd66
+  stroke none
+place rl1 shape=road-line at=50,538 size=40x4
+place rl2 shape=road-line at=150,538 size=40x4
+place rl3 shape=road-line at=250,538 size=40x4
+place rl4 shape=road-line at=350,538 size=40x4
+place rl5 shape=road-line at=450,538 size=40x4
+place rl6 shape=road-line at=550,538 size=40x4
+place rl7 shape=road-line at=650,538 size=40x4
+place rl8 shape=road-line at=750,538 size=40x4
+
+shape grass-tuft template=path
+  fill #6da040
+  stroke none
+  addpoint p1 at=0,10
+  addpoint p2 at=3,0 after=p1 mode=catmull-rom tension=0.4
+  addpoint p3 at=6,10 after=p2 mode=catmull-rom tension=0.4
+  addpoint p4 at=9,2 after=p3 mode=catmull-rom tension=0.4
+  addpoint p5 at=12,10 after=p4 mode=catmull-rom tension=0.4
+  close
+place gt1 shape=grass-tuft at=100,518 size=16x12
+place gt2 shape=grass-tuft at=300,516 size=14x14
+place gt3 shape=grass-tuft at=500,519 size=12x11
+place gt4 shape=grass-tuft at=680,517 size=15x13
+place gt5 shape=grass-tuft at=40,520 size=10x10
+place gt6 shape=grass-tuft at=750,518 size=13x12
+
+shape cloud template=path
+  fill #ffffff
+  stroke none
+  opacity 0.8
+  addpoint p1 at=0,30
+  addpoint p2 at=10,15 after=p1 mode=catmull-rom tension=0.2
+  addpoint p3 at=30,5 after=p2 mode=catmull-rom tension=0.2
+  addpoint p4 at=55,0 after=p3 mode=catmull-rom tension=0.2
+  addpoint p5 at=80,8 after=p4 mode=catmull-rom tension=0.2
+  addpoint p6 at=100,3 after=p5 mode=catmull-rom tension=0.2
+  addpoint p7 at=120,12 after=p6 mode=catmull-rom tension=0.2
+  addpoint p8 at=130,30 after=p7 mode=catmull-rom tension=0.2
+  close
+place cloud1 shape=cloud at=50,30 size=140x40
+place cloud2 shape=cloud at=550,15 size=180x45
+place cloud3 shape=cloud at=300,50 size=100x30
+
+shape back-wheel template=path
+  stroke #333333
+  stroke-width 3
+  fill none
+  addpoint p1 at=277,380
+  addpoint p2 at=334,403 after=p1 mode=catmull-rom tension=0.22
+  addpoint p3 at=357,460 after=p2 mode=catmull-rom tension=0.22
+  addpoint p4 at=334,517 after=p3 mode=catmull-rom tension=0.22
+  addpoint p5 at=277,540 after=p4 mode=catmull-rom tension=0.22
+  addpoint p6 at=220,517 after=p5 mode=catmull-rom tension=0.22
+  addpoint p7 at=197,460 after=p6 mode=catmull-rom tension=0.22
+  addpoint p8 at=220,403 after=p7 mode=catmull-rom tension=0.22
+  close
+place back-wheel shape=back-wheel at=0,0
+
+shape front-wheel template=path
+  stroke #333333
+  stroke-width 3
+  fill none
+  addpoint p1 at=577,380
+  addpoint p2 at=634,403 after=p1 mode=catmull-rom tension=0.22
+  addpoint p3 at=657,460 after=p2 mode=catmull-rom tension=0.22
+  addpoint p4 at=634,517 after=p3 mode=catmull-rom tension=0.22
+  addpoint p5 at=577,540 after=p4 mode=catmull-rom tension=0.22
+  addpoint p6 at=520,517 after=p5 mode=catmull-rom tension=0.22
+  addpoint p7 at=497,460 after=p6 mode=catmull-rom tension=0.22
+  addpoint p8 at=520,403 after=p7 mode=catmull-rom tension=0.22
+  close
+place front-wheel shape=front-wheel at=0,0
+
+shape back-tire template=path
+  stroke #444444
+  stroke-width 6
+  fill none
+  addpoint p1 at=277,380
+  addpoint p2 at=334,403 after=p1 mode=catmull-rom tension=0.22
+  addpoint p3 at=357,460 after=p2 mode=catmull-rom tension=0.22
+  addpoint p4 at=334,517 after=p3 mode=catmull-rom tension=0.22
+  addpoint p5 at=277,540 after=p4 mode=catmull-rom tension=0.22
+  addpoint p6 at=220,517 after=p5 mode=catmull-rom tension=0.22
+  addpoint p7 at=197,460 after=p6 mode=catmull-rom tension=0.22
+  addpoint p8 at=220,403 after=p7 mode=catmull-rom tension=0.22
+  close
+place back-tire shape=back-tire at=0,0
+
+shape front-tire template=path
+  stroke #444444
+  stroke-width 6
+  fill none
+  addpoint p1 at=577,380
+  addpoint p2 at=634,403 after=p1 mode=catmull-rom tension=0.22
+  addpoint p3 at=657,460 after=p2 mode=catmull-rom tension=0.22
+  addpoint p4 at=634,517 after=p3 mode=catmull-rom tension=0.22
+  addpoint p5 at=577,540 after=p4 mode=catmull-rom tension=0.22
+  addpoint p6 at=520,517 after=p5 mode=catmull-rom tension=0.22
+  addpoint p7 at=497,460 after=p6 mode=catmull-rom tension=0.22
+  addpoint p8 at=520,403 after=p7 mode=catmull-rom tension=0.22
+  close
+place front-tire shape=front-tire at=0,0
+
+shape hub template=path
+  fill #555555
+  stroke #333333
+  stroke-width 1
+  addpoint p1 at=0,0
+  addpoint p2 at=5,-2 after=p1 mode=catmull-rom tension=0.2
+  addpoint p3 at=10,0 after=p2 mode=catmull-rom tension=0.2
+  addpoint p4 at=12,5 after=p3 mode=catmull-rom tension=0.2
+  addpoint p5 at=10,10 after=p4 mode=catmull-rom tension=0.2
+  addpoint p6 at=5,12 after=p5 mode=catmull-rom tension=0.2
+  addpoint p7 at=0,10 after=p6 mode=catmull-rom tension=0.2
+  addpoint p8 at=-2,5 after=p7 mode=catmull-rom tension=0.2
+  close
+place back-hub shape=hub at=272,455 size=14x14
+place front-hub shape=hub at=572,455 size=14x14
+
+shape bspoke1 template=path
+  stroke #bbbbbb
+  stroke-width 1
+  fill none
+  addpoint s at=277,390
+  addpoint e at=277,530 after=s
+place bspoke1 shape=bspoke1 at=0,0
+
+shape bspoke2 template=path
+  stroke #bbbbbb
+  stroke-width 1
+  fill none
+  addpoint s at=207,460
+  addpoint e at=347,460 after=s
+place bspoke2 shape=bspoke2 at=0,0
+
+shape bspoke3 template=path
+  stroke #bbbbbb
+  stroke-width 1
+  fill none
+  addpoint s at=228,410
+  addpoint e at=326,510 after=s
+place bspoke3 shape=bspoke3 at=0,0
+
+shape bspoke4 template=path
+  stroke #bbbbbb
+  stroke-width 1
+  fill none
+  addpoint s at=228,510
+  addpoint e at=326,410 after=s
+place bspoke4 shape=bspoke4 at=0,0
+
+shape bspoke5 template=path
+  stroke #bbbbbb
+  stroke-width 1
+  fill none
+  addpoint s at=247,396
+  addpoint e at=307,524 after=s
+place bspoke5 shape=bspoke5 at=0,0
+
+shape bspoke6 template=path
+  stroke #bbbbbb
+  stroke-width 1
+  fill none
+  addpoint s at=307,396
+  addpoint e at=247,524 after=s
+place bspoke6 shape=bspoke6 at=0,0
+
+shape fspoke1 template=path
+  stroke #bbbbbb
+  stroke-width 1
+  fill none
+  addpoint s at=577,390
+  addpoint e at=577,530 after=s
+place fspoke1 shape=fspoke1 at=0,0
+
+shape fspoke2 template=path
+  stroke #bbbbbb
+  stroke-width 1
+  fill none
+  addpoint s at=507,460
+  addpoint e at=647,460 after=s
+place fspoke2 shape=fspoke2 at=0,0
+
+shape fspoke3 template=path
+  stroke #bbbbbb
+  stroke-width 1
+  fill none
+  addpoint s at=528,410
+  addpoint e at=626,510 after=s
+place fspoke3 shape=fspoke3 at=0,0
+
+shape fspoke4 template=path
+  stroke #bbbbbb
+  stroke-width 1
+  fill none
+  addpoint s at=528,510
+  addpoint e at=626,410 after=s
+place fspoke4 shape=fspoke4 at=0,0
+
+shape fspoke5 template=path
+  stroke #bbbbbb
+  stroke-width 1
+  fill none
+  addpoint s at=547,396
+  addpoint e at=607,524 after=s
+place fspoke5 shape=fspoke5 at=0,0
+
+shape fspoke6 template=path
+  stroke #bbbbbb
+  stroke-width 1
+  fill none
+  addpoint s at=607,396
+  addpoint e at=547,524 after=s
+place fspoke6 shape=fspoke6 at=0,0
+
+shape frame-rear template=path
+  stroke #cc4444
+  stroke-width 4
+  fill none
+  stroke-linecap round
+  addpoint p1 at=277,460
+  addpoint p2 at=330,345 after=p1
+place frame-rear shape=frame-rear at=0,0
+
+shape frame-top template=path
+  stroke #cc4444
+  stroke-width 4
+  fill none
+  stroke-linecap round
+  addpoint p1 at=330,345
+  addpoint p2 at=490,352 after=p1
+place frame-top shape=frame-top at=0,0
+
+shape frame-head template=path
+  stroke #cc4444
+  stroke-width 4
+  fill none
+  stroke-linecap round
+  addpoint p1 at=490,352
+  addpoint p2 at=577,460 after=p1
+place frame-head shape=frame-head at=0,0
+
+shape frame-down template=path
+  stroke #cc4444
+  stroke-width 4
+  fill none
+  stroke-linecap round
+  addpoint p1 at=330,345
+  addpoint p2 at=400,460 after=p1
+place frame-down shape=frame-down at=0,0
+
+shape frame-chain template=path
+  stroke #cc4444
+  stroke-width 4
+  fill none
+  stroke-linecap round
+  addpoint p1 at=277,460
+  addpoint p2 at=400,460 after=p1
+place frame-chain shape=frame-chain at=0,0
+
+shape frame-seat template=path
+  stroke #cc4444
+  stroke-width 4
+  fill none
+  stroke-linecap round
+  addpoint p1 at=400,460
+  addpoint p2 at=490,352 after=p1
+place frame-seat shape=frame-seat at=0,0
+
+shape seat-post template=path
+  stroke #555555
+  stroke-width 3
+  fill none
+  addpoint p1 at=338,345
+  addpoint p2 at=338,330 after=p1
+place seat-post shape=seat-post at=0,0
+
+shape seat template=path
+  fill #333333
+  stroke #222222
+  stroke-width 1
+  addpoint p1 at=315,332
+  addpoint p2 at=362,332 after=p1
+  addpoint p3 at=368,327 after=p2 mode=catmull-rom tension=0.4
+  addpoint p4 at=362,323 after=p3
+  addpoint p5 at=320,323 after=p4
+  addpoint p6 at=310,327 after=p5 mode=catmull-rom tension=0.4
+  close
+place seat shape=seat at=0,0
+
+shape head-tube template=path
+  stroke #aa3333
+  stroke-width 6
+  fill none
+  stroke-linecap round
+  addpoint p1 at=488,345
+  addpoint p2 at=495,365 after=p1
+place head-tube shape=head-tube at=0,0
+
+shape handlebar template=path
+  stroke #333333
+  stroke-width 3
+  fill none
+  stroke-linecap round
+  addpoint p1 at=478,325
+  addpoint p2 at=495,348 after=p1 mode=catmull-rom tension=0.4
+  addpoint p3 at=510,332 after=p2 mode=catmull-rom tension=0.4
+  addpoint p4 at=508,312 after=p3
+place handlebar shape=handlebar at=0,0
+
+shape handlebar-grip1 template=path
+  stroke #222222
+  stroke-width 5
+  fill none
+  stroke-linecap round
+  addpoint p1 at=475,322
+  addpoint p2 at=478,328 after=p1
+place handlebar-grip1 shape=handlebar-grip1 at=0,0
+
+shape handlebar-grip2 template=path
+  stroke #222222
+  stroke-width 5
+  fill none
+  stroke-linecap round
+  addpoint p1 at=506,310
+  addpoint p2 at=509,316 after=p1
+place handlebar-grip2 shape=handlebar-grip2 at=0,0
+
+shape bb-axle template=path
+  fill #555555
+  stroke #333333
+  stroke-width 1
+  addpoint p1 at=0,0
+  addpoint p2 at=4,-1 after=p1 mode=catmull-rom tension=0.2
+  addpoint p3 at=8,0 after=p2 mode=catmull-rom tension=0.2
+  addpoint p4 at=9,4 after=p3 mode=catmull-rom tension=0.2
+  addpoint p5 at=8,8 after=p4 mode=catmull-rom tension=0.2
+  addpoint p6 at=4,9 after=p5 mode=catmull-rom tension=0.2
+  addpoint p7 at=0,8 after=p6 mode=catmull-rom tension=0.2
+  addpoint p8 at=-1,4 after=p7 mode=catmull-rom tension=0.2
+  close
+place bb-axle shape=bb-axle at=396,456 size=10x10
+
+shape crank1 template=path
+  stroke #555555
+  stroke-width 3
+  fill none
+  stroke-linecap round
+  addpoint s at=400,460
+  addpoint e at=382,445 after=s
+place crank1 shape=crank1 at=0,0
+
+shape crank2 template=path
+  stroke #555555
+  stroke-width 3
+  fill none
+  stroke-linecap round
+  addpoint s at=400,460
+  addpoint e at=418,475 after=s
+place crank2 shape=crank2 at=0,0
+
+shape pedal template=rectangle
+  fill #555555
+  stroke #333333
+  stroke-width 1
+place pedal1 shape=pedal at=370,441 size=24x8
+place pedal2 shape=pedal at=408,472 size=24x8
+
+shape chain template=path
+  stroke #777755
+  stroke-width 2
+  fill none
+  addpoint p1 at=284,466
+  addpoint p2 at=340,478 after=p1 mode=catmull-rom tension=0.6
+  addpoint p3 at=400,470 after=p2 mode=catmull-rom tension=0.6
+  addpoint p4 at=400,452 after=p3
+  addpoint p5 at=340,446 after=p4 mode=catmull-rom tension=0.6
+  addpoint p6 at=284,454 after=p5 mode=catmull-rom tension=0.6
+  close
+place chain shape=chain at=0,0
+
+shape tail template=path
+  fill #e8dcc0
+  stroke #c0a060
+  stroke-width 1
+  addpoint p1 at=280,240
+  addpoint p2 at=230,215 after=p1 mode=catmull-rom tension=0.4
+  addpoint p3 at=210,230 after=p2
+  addpoint p4 at=220,210 after=p3
+  addpoint p5 at=200,218 after=p4
+  addpoint p6 at=215,200 after=p5
+  addpoint p7 at=198,202 after=p6
+  addpoint p8 at=230,190 after=p7 mode=catmull-rom tension=0.4
+  addpoint p9 at=280,210 after=p8 mode=catmull-rom tension=0.4
+  close
+place tail shape=tail at=0,0
+
+shape body template=ellipse
+  fill #f5e6c8
+  stroke #d4a050
+  stroke-width 2
+place body shape=body at=280,200 size=170x150
+
+shape belly template=ellipse
+  fill #f0d8a8
+  stroke none
+  opacity 0.6
+place belly shape=belly at=300,240 size=120x110
+
+shape wing template=path
+  fill #e0d0a8
+  stroke #c0a060
+  stroke-width 2
+  addpoint p1 at=300,220
+  addpoint p2 at=255,250 after=p1 mode=catmull-rom tension=0.2
+  addpoint p3 at=235,295 after=p2 mode=catmull-rom tension=0.4
+  addpoint p4 at=245,308 after=p3
+  addpoint p5 at=265,288 after=p4
+  addpoint p6 at=275,308 after=p5
+  addpoint p7 at=295,285 after=p6
+  addpoint p8 at=310,308 after=p7
+  addpoint p9 at=340,278 after=p8 mode=catmull-rom tension=0.4
+  addpoint p10 at=385,248 after=p9 mode=catmull-rom tension=0.2
+  close
+place wing shape=wing at=0,0
+
+shape left-leg template=path
+  stroke #e8a030
+  stroke-width 4
+  fill none
+  addpoint p1 at=340,310
+  addpoint p2 at=358,378 after=p1 mode=catmull-rom tension=0.4
+  addpoint p3 at=382,442 after=p2 mode=catmull-rom tension=0.6
+place left-leg shape=left-leg at=0,0
+
+shape right-leg template=path
+  stroke #e8a030
+  stroke-width 4
+  fill none
+  addpoint p1 at=365,310
+  addpoint p2 at=393,390 after=p1 mode=catmull-rom tension=0.4
+  addpoint p3 at=418,472 after=p2 mode=catmull-rom tension=0.6
+place right-leg shape=right-leg at=0,0
+
+shape foot template=path
+  fill #e8a030
+  stroke #c07020
+  stroke-width 1
+  addpoint p1 at=0,0
+  addpoint p2 at=25,0 after=p1
+  addpoint p3 at=30,5 after=p2 mode=catmull-rom tension=0.4
+  addpoint p4 at=25,8 after=p3
+  addpoint p5 at=0,8 after=p4
+  close
+place left-foot shape=foot at=370,438 size=24x10
+place right-foot shape=foot at=408,469 size=24x10
+
+shape neck template=path
+  fill #f5e6c8
+  stroke #d4a050
+  stroke-width 2
+  addpoint p1 at=390,220
+  addpoint p2 at=415,175 after=p1 mode=catmull-rom tension=0.2
+  addpoint p3 at=435,120 after=p2 mode=catmull-rom tension=0.2
+  addpoint p4 at=445,90 after=p3 mode=catmull-rom tension=0.4
+  addpoint p5 at=462,90 after=p4 mode=catmull-rom tension=0.4
+  addpoint p6 at=452,120 after=p5 mode=catmull-rom tension=0.2
+  addpoint p7 at=435,175 after=p6 mode=catmull-rom tension=0.2
+  addpoint p8 at=415,220 after=p7 mode=catmull-rom tension=0.2
+  close
+place neck shape=neck at=0,0
+
+shape wing-arm template=path
+  stroke #d4a050
+  stroke-width 3
+  fill none
+  addpoint p1 at=385,230
+  addpoint p2 at=430,270 after=p1 mode=catmull-rom tension=0.2
+  addpoint p3 at=465,315 after=p2 mode=catmull-rom tension=0.4
+  addpoint p4 at=478,325 after=p3
+place wing-arm shape=wing-arm at=0,0
+
+shape head template=ellipse
+  fill #f5e6c8
+  stroke #d4a050
+  stroke-width 2
+place head shape=head at=418,55 size=75x60
+
+shape eye-white template=ellipse
+  fill #ffffff
+  stroke none
+place eye-white shape=eye-white at=442,66 size=18x16
+
+shape eye-pupil template=ellipse
+  fill #111111
+  stroke none
+place eye-pupil shape=eye-pupil at=448,68 size=9x10
+
+shape eye-glint template=ellipse
+  fill #ffffff
+  stroke none
+place eye-glint shape=eye-glint at=450,66 size=3x3
+
+shape upper-beak template=path
+  fill #e8a030
+  stroke #c07020
+  stroke-width 2
+  addpoint p1 at=460,72
+  addpoint p2 at=530,80 after=p1 mode=catmull-rom tension=0.6
+  addpoint p3 at=580,85 after=p2
+  addpoint p4 at=530,88 after=p3 mode=catmull-rom tension=0.6
+  addpoint p5 at=460,88 after=p4 mode=catmull-rom tension=0.6
+  close
+place upper-beak shape=upper-beak at=0,0
+
+shape lower-beak template=path
+  fill #f0b040
+  stroke #c07020
+  stroke-width 2
+  addpoint p1 at=460,88
+  addpoint p2 at=510,92 after=p1 mode=catmull-rom tension=0.4
+  addpoint p3 at=555,88 after=p2 mode=catmull-rom tension=0.6
+  addpoint p4 at=530,112 after=p3 mode=catmull-rom
+  addpoint p5 at=490,116 after=p4 mode=catmull-rom
+  addpoint p6 at=460,102 after=p5 mode=catmull-rom tension=0.4
+  close
+place lower-beak shape=lower-beak at=0,0
+
+shape beak-tip template=path
+  fill #d89020
+  stroke #c07020
+  stroke-width 1
+  addpoint p1 at=575,83
+  addpoint p2 at=586,87 after=p1 mode=catmull-rom tension=0.4
+  addpoint p3 at=580,92 after=p2 mode=catmull-rom tension=0.4
+  close
+place beak-tip shape=beak-tip at=0,0
+
+shape nostril template=path
+  fill #c07020
+  stroke none
+  addpoint p1 at=470,79
+  addpoint p2 at=475,78 after=p1 mode=catmull-rom tension=0.4
+  addpoint p3 at=476,81 after=p2 mode=catmull-rom tension=0.4
+  close
+place nostril shape=nostril at=0,0
+
+shape shadow template=ellipse
+  fill #000000
+  stroke none
+  opacity 0.12
+place shadow shape=shadow at=190,522 size=500x20
+
+shape sun template=path
+  fill #ffe066
+  stroke none
+  addpoint p1 at=40,0
+  addpoint p2 at=57,17 after=p1 mode=catmull-rom tension=0.22
+  addpoint p3 at=65,40 after=p2 mode=catmull-rom tension=0.22
+  addpoint p4 at=57,63 after=p3 mode=catmull-rom tension=0.22
+  addpoint p5 at=40,72 after=p4 mode=catmull-rom tension=0.22
+  addpoint p6 at=23,63 after=p5 mode=catmull-rom tension=0.22
+  addpoint p7 at=15,40 after=p6 mode=catmull-rom tension=0.22
+  addpoint p8 at=23,17 after=p7 mode=catmull-rom tension=0.22
+  close
+place sun shape=sun at=680,-10 size=90x90
+
+shape sun-glow template=path
+  fill #ffe066
+  stroke none
+  opacity 0.25
+  addpoint p1 at=40,0
+  addpoint p2 at=57,17 after=p1 mode=catmull-rom tension=0.22
+  addpoint p3 at=65,40 after=p2 mode=catmull-rom tension=0.22
+  addpoint p4 at=57,63 after=p3 mode=catmull-rom tension=0.22
+  addpoint p5 at=40,72 after=p4 mode=catmull-rom tension=0.22
+  addpoint p6 at=23,63 after=p5 mode=catmull-rom tension=0.22
+  addpoint p7 at=15,40 after=p6 mode=catmull-rom tension=0.22
+  addpoint p8 at=23,17 after=p7 mode=catmull-rom tension=0.22
+  close
+place sun-glow shape=sun-glow at=665,-25 size=120x120
+
+shape sunray1 template=path
+  stroke #ffdd44
+  stroke-width 3
+  fill none
+  stroke-linecap round
+  addpoint p1 at=762,30
+  addpoint p2 at=785,30 after=p1
+place sunray1 shape=sunray1 at=0,0
+
+shape sunray2 template=path
+  stroke #ffdd44
+  stroke-width 3
+  fill none
+  stroke-linecap round
+  addpoint p1 at=758,10
+  addpoint p2 at=778,0 after=p1
+place sunray2 shape=sunray2 at=0,0
+
+shape sunray3 template=path
+  stroke #ffdd44
+  stroke-width 3
+  fill none
+  stroke-linecap round
+  addpoint p1 at=758,52
+  addpoint p2 at=778,62 after=p1
+place sunray3 shape=sunray3 at=0,0
+
+shape sunray4 template=path
+  stroke #ffdd44
+  stroke-width 3
+  fill none
+  stroke-linecap round
+  addpoint p1 at=738,68
+  addpoint p2 at=748,85 after=p1
+place sunray4 shape=sunray4 at=0,0
+
+shape sunray5 template=path
+  stroke #ffdd44
+  stroke-width 3
+  fill none
+  stroke-linecap round
+  addpoint p1 at=720,-5
+  addpoint p2 at=720,-22 after=p1
+place sunray5 shape=sunray5 at=0,0

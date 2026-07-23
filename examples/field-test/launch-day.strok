@@ -1,0 +1,387 @@
+# Launch day — a startup team's day in three zones (field-test poster)
+documentsize 1600x1000
+
+use "std/figures" as fig
+use "std/bubbles" as bub
+use "std/devices" as dev
+use "std/furniture" as fur
+
+palette
+  bg #f7f1e6
+  ink #2d2a32
+  paper #ffffff
+  board #fdfbf5
+  frame #cdbfa8
+  coral #e8604c
+  teal #2a9d8f
+  amber #f4a259
+  navy #264653
+  sky #7fb7be
+  sticky1 #ffd166
+  sticky2 #f4978e
+  sticky3 #9bdeac
+  wood #b98a5e
+  leaf #4a7c59
+  pot #c9694a
+  skin1 #f2c6a0
+  skin2 #a8734b
+  skin3 #7a4b2a
+  muted #8b8378
+
+tokens
+  space.md 24
+  space.lg 48
+  radius.sm 6
+  radius.md 12
+
+# ── rhythm ──────────────────────────────────────────────
+let colw 100
+let noteh 64
+let notegap 16
+let kx 128
+let ky 322
+let cardw 120
+let cardy 560
+let tickx0 1215
+let ticky 520
+
+# ── generic shapes ──────────────────────────────────────
+shape bgrect template=rectangle
+  fill $bg
+  stroke none
+
+shape zoneband template=rectangle
+  fill $paper
+  stroke none
+
+shape rrect template=rectangle
+  round-corners 12
+  fill $paper
+  stroke none
+
+shape rect template=rectangle
+  fill $paper
+  stroke none
+
+shape circle template=ellipse
+  fill $ink
+  stroke none
+
+shape lineh template=line
+  stroke $ink
+  stroke-width 3
+
+# people
+shape head template=ellipse
+  fill $skin1
+  stroke none
+
+shape torso template=rectangle
+  round-corners tl=18 tr=18 br=4 bl=4
+  fill $teal
+  stroke none
+
+shape armshape template=rectangle
+  round-corners 8
+  fill $teal
+  stroke none
+
+# furniture / props
+shape boardframe template=rectangle
+  round-corners 10
+  fill $board
+  stroke $frame
+  stroke-width 6
+
+shape tabletop template=rectangle
+  round-corners 6
+  fill $wood
+  stroke none
+
+shape tableleg template=rectangle
+  fill $wood
+  stroke none
+
+shape potshape template=path
+  addpoint tl at=0,0
+  addpoint tr at=40,0
+  addpoint br at=32,36 after=tr
+  addpoint bl at=8,36 after=br
+  close
+  fill $pot
+  stroke none
+
+shape leafblob template=ellipse
+  fill $leaf
+  stroke none
+
+shape stemshape template=line
+  stroke $leaf
+  stroke-width 5
+  stroke-linecap round
+
+shape floorband template=rectangle
+  fill #efe6d4
+  stroke none
+
+shape sticky template=rectangle
+  round-corners 4
+  fill $sticky1
+  stroke none
+
+# devices
+shape browser template=rectangle
+  round-corners 14
+  fill $paper
+  stroke $navy
+  stroke-width 5
+
+shape browserbar template=rectangle
+  round-corners tl=14 tr=14 br=0 bl=0
+  fill $navy
+  stroke none
+
+shape dot template=ellipse
+  fill $coral
+  stroke none
+
+shape ctabtn template=rectangle
+  round-corners 10
+  fill $coral
+  stroke none
+
+shape card template=rectangle
+  round-corners 10
+  fill $bg
+  stroke $frame
+  stroke-width 2
+
+shape laptopbase template=rectangle
+  round-corners 4
+  fill $navy
+  stroke none
+
+shape laptopscreen template=rectangle
+  round-corners 6
+  fill $navy
+  stroke none
+
+shape screenface template=rectangle
+  fill $sky
+  stroke none
+
+shape projscreen template=rectangle
+  fill $paper
+  stroke $frame
+  stroke-width 5
+
+# hand-authored speech bubble: notch width/depth don't survive bbox-fit size=
+shape bubble template=path
+  addpoint tl at=0,0
+  addpoint tr at=180,0
+  addpoint br at=180,70 after=tr
+  addpoint tailr at=152,70 after=br
+  addpoint tailtip at=144,94 after=tailr
+  addpoint taill at=128,70 after=tailtip
+  addpoint bl at=0,70 after=taill
+  close
+  round-corners tl=12 tr=12 br=12 bl=12
+  fill $paper
+  stroke $ink
+  stroke-width 3
+
+shape thought template=ellipse
+  fill $paper
+  stroke $ink
+  stroke-width 3
+
+# chart
+shape chartline template=path
+  addpoint p0 at=0,120
+  addpoint p1 at=60,95
+  addpoint p2 at=120,105
+  addpoint p3 at=190,55
+  addpoint p4 at=260,20
+  stroke $coral
+  stroke-width 6
+  stroke-linecap round
+  stroke-linejoin round
+
+shape axis template=line
+  stroke $ink
+  stroke-width 3
+
+shape tick template=line
+  stroke $ink
+  stroke-width 2
+
+shape confetti template=rectangle
+  fill $amber
+  stroke none
+
+# text
+shape title template=text
+  content "Launch day"
+  font-size 72
+  font-weight bold
+  text-anchor middle
+  fill $ink
+
+shape label template=text
+  content "label"
+  font-size 20
+  fill $ink
+
+shape smalltext template=text
+  content "x"
+  font-size 16
+  fill $muted
+
+shape herotext template=text
+  content "Ship faster"
+  font-size 34
+  font-weight bold
+  text-anchor middle
+  fill $navy
+
+shape ctext template=text
+  content "x"
+  font-size 20
+  text-anchor middle
+  fill $paper
+
+shape cardlabel template=text
+  content "x"
+  font-size 16
+  text-anchor middle
+  fill $navy
+
+shape bubbletext template=text
+  content "We're live!"
+  font-size 24
+  font-weight bold
+  fill $ink
+
+# ── background + title ─────────────────────────────────
+place bg shape=bgrect at=0,0 size=1600x1000
+place floor shape=floorband at=0,868 size=1600x132
+place title shape=title at=800,90
+
+# ── LEFT: planning huddle ──────────────────────────────
+place whiteboard shape=fur.whiteboard at=90,220 size=400x648
+  fill $frame
+place boardpanel shape=boardframe at=whiteboard.tl offset=18,18 size=364x436
+
+# kanban: 3 columns x 3 notes (one repeat per column so colors can differ)
+place colhead-1 shape=smalltext at=$kx,306
+  content "To do"
+place colhead-2 shape=smalltext at=$kx+$colw+$notegap,306
+  content "Doing"
+place colhead-3 shape=smalltext at=$kx+2*($colw+$notegap),306
+  content "Done"
+repeat r 1
+  place note-a shape=fur.sticky-note at=$kx,$ky+$r*($noteh+$notegap) size=100x64
+    fill $sticky1
+repeat r 2
+  place note-b shape=fur.sticky-note at=$kx+$colw+$notegap,$ky+$r*($noteh+$notegap) size=100x64
+    fill $sticky2
+repeat r 3
+  place note-c shape=fur.sticky-note at=$kx+2*($colw+$notegap),$ky+$r*($noteh+$notegap) size=100x64
+    fill $sticky3
+
+# three people standing on the floor in front of the whiteboard
+place p1 shape=fig.person-standing at=110,688 size=72x180
+  fill $teal
+place p2 shape=fig.person-standing at=p1.tr offset=18,0 size=72x180
+  fill $coral
+place p3 shape=fig.person-standing at=p2.tr offset=18,0 size=72x180
+  fill $amber
+
+# side table with the plant on top
+place table-left shape=fur.table at=380,748 size=160x120
+  fill $wood
+place plantpot shape=potshape at=table-left.top align=bottom offset=0,2 size=44x40
+place stem1 shape=stemshape from=452,712 to=438,658
+place stem2 shape=stemshape from=452,712 to=466,654
+place stem3 shape=stemshape from=452,712 to=452,644
+place leafb1 shape=leafblob center=438,650 size=22x30 rotation=-15deg
+place leafb2 shape=leafblob center=466,646 size=22x30 rotation=15deg
+place leafb3 shape=leafblob center=452,634 size=20x32
+
+# ── CENTER: the launch moment ──────────────────────────
+place browserwin shape=dev.browser-window at=620,260 size=440x400
+  fill $navy
+place browserbody shape=rect at=browserwin.tl offset=12,66 size=416x328
+
+place hero shape=herotext at=840,385
+place herosub shape=smalltext at=756,412
+  content "The new home for tiny teams"
+place cta shape=ctabtn at=770,432 size=140x44
+place ctalabel shape=ctext at=840,461
+  content "Get started"
+
+repeat f 3
+  place feature shape=card at=650+$f*($cardw+18),$cardy size=120x70
+  place fdot shape=dot center=650+$f*($cardw+18)+60,$cardy+24 radius=8
+    fill $teal
+place cardlabel-1 shape=cardlabel at=710,$cardy+56
+  content "Fast"
+place cardlabel-2 shape=cardlabel at=848,$cardy+56
+  content "Simple"
+place cardlabel-3 shape=cardlabel at=986,$cardy+56
+  content "Open"
+
+# presenter pointing at browser (std figure, points right)
+place p4 shape=fig.person-pointing at=548,668 size=100x200
+  fill $navy
+
+place saybubble shape=bub.speech-bubble at=430,500 size=190x120 flip=x
+  fill $paper
+  stroke $ink
+  stroke-width 3
+# NOTE: text + at=<target>.<anchor> resolves to 0,0 (engine bug) — absolute coords instead
+place saytext shape=bubbletext at=455,552
+
+# confetti — three repeats for three colors
+repeat k 5
+  place conf-r shape=confetti at=640+$k*84,150+($k%3)*36 size=12x18 rotation=30deg
+    fill $coral
+repeat k 5
+  place conf-t shape=confetti at=668+$k*84,132+($k%2)*48 size=12x18 rotation=-20deg
+    fill $teal
+repeat k 5
+  place conf-a shape=confetti at=696+$k*84,168+($k%3)*30 size=12x18 rotation=60deg
+
+# ── RIGHT: the results ─────────────────────────────────
+place projector shape=dev.projector-screen at=1130,150 size=380x300
+  fill $frame
+place projpanel shape=rect at=1146,162 size=348x182
+place chart shape=chartline at=1195,185 size=245x105
+place xaxis shape=axis from=1185,312 to=1465,312
+place yaxis shape=axis from=1185,312 to=1185,180
+
+repeat t 4
+  place tick shape=tick from=$tickx0+$t*66,312 to=$tickx0+$t*66,320
+place ticklab-1 shape=smalltext at=($tickx0)-12,336
+  content "wk 1"
+place ticklab-2 shape=smalltext at=($tickx0)+54,336
+  content "wk 2"
+place ticklab-3 shape=smalltext at=($tickx0)+120,336
+  content "wk 3"
+place ticklab-4 shape=smalltext at=($tickx0)+186,336
+  content "wk 4"
+
+place desk shape=fur.table at=1180,700 size=320x168
+  fill $wood
+place laptop shape=dev.laptop at=desk.top align=bottom offset=0,8 size=160x96
+  fill $navy
+
+place p5 shape=fig.person-standing at=1090,688 size=72x180
+  fill $teal
+
+place think1 shape=thought center=1160,645 radius=8
+place think2 shape=thought center=1195,595 radius=12
+place thinkmain shape=thought center=1290,525 size=180x90
+place thinktext shape=ctext at=1290,533
+  content "10k users?"
+  fill $ink

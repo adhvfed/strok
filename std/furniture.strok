@@ -1,0 +1,127 @@
+# Standard library: furniture (workshop / office illustration set).
+#
+# Filled silhouettes, one `path` shape each (subpaths for disjoint pieces
+# like table legs). Place with a `fill` override.
+
+# @meaning A table — flat rectangular top on two straight legs.
+#   Canvas 80x48.
+# @tags table, desk, furniture, workshop, office
+shape table template=path
+  addpoint top-tl at=0,0
+  addpoint top-tr at=80,0
+  addpoint top-br at=80,8
+  addpoint top-bl at=0,8
+  close
+  subpath
+  addpoint leg-l-tl at=6,8
+  addpoint leg-l-tr at=14,8
+  addpoint leg-l-br at=12,48
+  addpoint leg-l-bl at=6,48
+  close
+  subpath
+  addpoint leg-r-tl at=66,8
+  addpoint leg-r-tr at=74,8
+  addpoint leg-r-br at=74,48
+  addpoint leg-r-bl at=68,48
+  close
+
+# @meaning A chair viewed from the side — seat, backrest, and legs.
+#   Canvas 36x56.
+# @tags chair, seat, furniture, workshop, office
+shape chair-side template=path
+  addpoint back-tl at=2,0
+  addpoint back-tr at=8,0
+  addpoint back-br at=10,28
+  addpoint back-bl at=4,28
+  close
+  round-corners back-tl=2 back-tr=2
+  subpath
+  addpoint seat-tl at=4,28
+  addpoint seat-tr at=32,28
+  addpoint seat-br at=32,34
+  addpoint seat-bl at=4,34
+  close
+  subpath
+  addpoint leg-f-tl at=6,34
+  addpoint leg-f-tr at=11,34
+  addpoint leg-f-br at=9,56
+  addpoint leg-f-bl at=6,56
+  close
+  subpath
+  addpoint leg-b-tl at=25,34
+  addpoint leg-b-tr at=30,34
+  addpoint leg-b-br at=30,56
+  addpoint leg-b-bl at=27,56
+  close
+
+# @meaning A potted plant — round pot with three leaf blades.
+#   Canvas 36x56.
+# @tags plant, pot, foliage, decoration, workshop, office
+shape plant template=path
+  addpoint pot-tl at=8,40
+  addpoint pot-tr at=28,40
+  addpoint pot-br at=24,56
+  addpoint pot-bl at=12,56
+  close
+  subpath
+  addpoint l1-base at=18,40
+  addpoint l1-mid at=10,20 after=l1-base mode=catmull-rom tension=0.2
+  addpoint l1-tip at=6,2 after=l1-mid mode=catmull-rom tension=0.2
+  addpoint l1-back at=14,26 after=l1-tip mode=catmull-rom tension=0.2
+  close
+  smooth all tension=0.2
+  sharpen l1-base
+  subpath
+  addpoint l2-base at=18,40
+  addpoint l2-tip at=18,0 after=l2-base mode=catmull-rom tension=0.1
+  addpoint l2-back at=22,20 after=l2-tip mode=catmull-rom tension=0.1
+  close
+  smooth all tension=0.1
+  sharpen l2-base
+  subpath
+  addpoint l3-base at=18,40
+  addpoint l3-mid at=26,22 after=l3-base mode=catmull-rom tension=0.2
+  addpoint l3-tip at=30,4 after=l3-mid mode=catmull-rom tension=0.2
+  addpoint l3-back at=22,28 after=l3-tip mode=catmull-rom tension=0.2
+  close
+  smooth all tension=0.2
+  sharpen l3-base
+
+# @meaning A whiteboard on a stand — wide panel with two X-frame legs.
+#   Canvas 80x60.
+# @tags whiteboard, board, presentation, workshop, easel
+shape whiteboard template=path
+  addpoint panel-tl at=2,0
+  addpoint panel-tr at=78,0
+  addpoint panel-br at=78,44
+  addpoint panel-bl at=2,44
+  close
+  round-corners panel-tl=2 panel-tr=2 panel-br=2 panel-bl=2
+  subpath
+  addpoint leg-l-t at=10,44
+  addpoint leg-l-tw at=14,44
+  addpoint leg-l-b at=8,60
+  addpoint leg-l-bw at=4,60
+  close
+  subpath
+  addpoint leg-r-t at=66,44
+  addpoint leg-r-tw at=70,44
+  addpoint leg-r-b at=76,60
+  addpoint leg-r-bw at=72,60
+  close
+
+# @meaning A sticky note — a small square with a folded top-right corner.
+#   Canvas 32x32.
+# @tags sticky-note, note, memo, reminder, post-it
+shape sticky-note template=path
+  addpoint tl at=0,0
+  addpoint tr at=24,0
+  addpoint fold at=32,8
+  addpoint br at=32,32
+  addpoint bl at=0,32
+  close
+  subpath
+  addpoint f1 at=24,0
+  addpoint f2 at=32,8
+  addpoint f3 at=24,8
+  close

@@ -1,0 +1,66 @@
+# A compact design system that exercises every Strøk code-generation target:
+#
+#   strok -f examples/design-system.strok emit react   --out out/react
+#   strok -f examples/design-system.strok emit solid   --out out/solid
+#   strok -f examples/design-system.strok emit vanilla --out out/vanilla
+#   strok -f examples/design-system.strok emit tailwind --out out/theme
+#   strok -f examples/design-system.strok emit dtcg    --out out/tokens
+#   strok -f examples/design-system.strok render --out design-system.png
+documentsize 360x240
+
+# ── Tokens (color/space/radius/font/shadow) ─────────────────────────────────
+palette
+  surface #0f1115
+  surface-raised #161a20
+  surface-hover #1e242c
+  accent #5b8def
+  text-primary #e6eaf0
+  text-muted #8a94a6
+  border #232a33
+
+tokens
+  space.xs 4
+  space.sm 8
+  space.md 16
+  space.lg 24
+  radius.sm 4
+  radius.md 8
+  font.body "Inter"
+  font.mono "JetBrains Mono"
+  shadow.card "0 1px 2px rgba(0,0,0,0.4)"
+
+# ── Geometry the components reuse ───────────────────────────────────────────
+shape glyph template=ellipse
+  fill $accent
+
+shape label template=text
+  content "Button"
+  font-size 14
+  font-family $font.body
+  fill $text-primary
+  text-anchor middle
+
+# ── Component: Button (primary / ghost variants, a real text label) ─────────
+component button variants=[primary, ghost] props=[label:text]
+  frame root layout=flex(row, gap=8, padding=8,16, align=center, justify=center)
+    fill $accent
+    round-corners $radius.md
+    place icon shape=glyph at=0,0 size=8x8
+    place text shape=label at=0,0 size=80x16
+
+# ── Component: NavItem (Instrument active state = surface fill + bright text) ─
+component navitem variants=[default, active] props=[label:text]
+  frame root layout=flex(row, gap=8, padding=8,12, align=center)
+    fill $surface-hover
+    round-corners $radius.sm
+    place glyph shape=glyph at=0,0 size=6x6
+    place text shape=label at=0,0 size=120x16
+
+# ── A composed screen using the components ──────────────────────────────────
+frame screen layout=flex(col, gap=16, padding=24) size=360x240 at=0,0
+  fill $surface
+  round-corners $radius.md
+  place heading shape=label at=0,0 size=200x20
+
+instance nav from=navitem variant=active label="Overview" at=24,80
+instance cta from=button variant=primary label="Create" at=24,180

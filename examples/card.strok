@@ -1,0 +1,33 @@
+# C8 demo: UX primitives (frame + layout + tokens + component/instance).
+# `strok -f examples/card.strok emit react|solid|vanilla|tailwind`
+# `strok -f examples/card.strok render --out card.png`
+documentsize 320x200
+
+palette
+  surface #faf6f0
+  accent #c8863a
+  ink #1a1a1a
+
+tokens
+  space.md 16
+  radius.md 12
+  radius.sm 6
+  font.body "IBM Plex Sans"
+
+shape dot template=ellipse
+  fill $accent
+
+# A reusable button: its own emitted component file, variants drive a prop.
+component button variants=[primary, ghost] props=[label:text]
+  frame root layout=flex(row, gap=8, padding=10,16, align=center, justify=center)
+    fill $accent
+    round-corners $radius.sm
+    place icon shape=dot at=0,0 size=10x10
+
+# A laid-out card frame containing a placed shape and a button instance.
+frame card layout=flex(col, gap=12, padding=16) size=320x200 at=0,0
+  fill $surface
+  round-corners 12
+  place badge shape=dot at=16,16 size=48x48
+
+instance cta from=button variant=primary label="Get started" at=20,150

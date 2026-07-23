@@ -1,0 +1,13 @@
+# A folder rebuilt with one notch operation instead of a hand-composed path.
+# The raised tab uses `notch dir=out`; styling uses currentColor and no fill.
+documentsize 24x24
+
+shape folder template=rectangle
+  notch edge=top dir=out shape=square pos=0.28 width=8 depth=3
+  round-corners tl=2 tr=2 br=2 bl=2
+  fill none
+  stroke currentColor
+  stroke-width 2
+  stroke-linejoin round
+
+place folder shape=folder at=2,6 size=20x13

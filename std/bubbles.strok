@@ -1,0 +1,109 @@
+# Standard library: speech/thought bubbles and banners.
+#
+# All bubbles are FILLED closed shapes — place with a `fill` override
+# (background) and optionally a `stroke` override (outline).
+#
+# Speech / callout bodies are hand-built rounded-rect paths with an explicit
+# triangular tail (arc-rounded corners via `mode=arc` on the short corner
+# segments — never a long edge). The thought bubble is a scalloped catmull-rom
+# cloud plus true round trailing dots (4 cardinal catmull points, circle
+# tension). These curves survive because subpath contours are curve-aware per
+# point (EXP-4).
+
+# @meaning A rounded speech bubble with a pointed tail bottom-left
+#   (dialogue, chat, quote). Canvas 80x64.
+# @tags speech, bubble, chat, dialogue, talk, quote, comment
+shape speech-bubble template=path
+  addpoint tl at=10,0 mode=arc rx=10 ry=10 bulge=left
+  addpoint tr-start at=70,0
+  addpoint tr at=80,10 mode=arc rx=10 ry=10 bulge=left
+  addpoint rr at=80,40 after=tr
+  addpoint br at=70,50 after=rr mode=arc rx=10 ry=10 bulge=left
+  addpoint tail-r at=38,50 after=br
+  addpoint tail-tip at=22,64 after=tail-r
+  addpoint tail-l at=30,50 after=tail-tip
+  addpoint bl at=10,50 after=tail-l
+  addpoint bl-corner at=0,40 after=bl mode=arc rx=10 ry=10 bulge=left
+  addpoint lr at=0,10 after=bl-corner
+  close
+
+# @meaning A cloud-shaped thought bubble with small trailing circles
+#   (thinking, idea, dream). Canvas 80x64.
+# @tags thought, bubble, thinking, idea, dream, cloud
+shape thought-bubble template=path
+  addpoint l0t at=40,12 mode=catmull-rom tension=-0.66
+  addpoint l0r at=55,27 after=l0t mode=catmull-rom tension=-0.66
+  addpoint l0b at=40,42 after=l0r mode=catmull-rom tension=-0.66
+  addpoint l0l at=25,27 after=l0b mode=catmull-rom tension=-0.66
+  close
+  subpath
+  addpoint l1t at=27,13 mode=catmull-rom tension=-0.66
+  addpoint l1r at=37,23 after=l1t mode=catmull-rom tension=-0.66
+  addpoint l1b at=27,33 after=l1r mode=catmull-rom tension=-0.66
+  addpoint l1l at=17,23 after=l1b mode=catmull-rom tension=-0.66
+  close
+  subpath
+  addpoint l2t at=40,4 mode=catmull-rom tension=-0.66
+  addpoint l2r at=52,16 after=l2t mode=catmull-rom tension=-0.66
+  addpoint l2b at=40,28 after=l2r mode=catmull-rom tension=-0.66
+  addpoint l2l at=28,16 after=l2b mode=catmull-rom tension=-0.66
+  close
+  subpath
+  addpoint l3t at=53,13 mode=catmull-rom tension=-0.66
+  addpoint l3r at=63,23 after=l3t mode=catmull-rom tension=-0.66
+  addpoint l3b at=53,33 after=l3r mode=catmull-rom tension=-0.66
+  addpoint l3l at=43,23 after=l3b mode=catmull-rom tension=-0.66
+  close
+  subpath
+  addpoint l4t at=50,23 mode=catmull-rom tension=-0.66
+  addpoint l4r at=60,33 after=l4t mode=catmull-rom tension=-0.66
+  addpoint l4b at=50,43 after=l4r mode=catmull-rom tension=-0.66
+  addpoint l4l at=40,33 after=l4b mode=catmull-rom tension=-0.66
+  close
+  subpath
+  addpoint l5t at=30,23 mode=catmull-rom tension=-0.66
+  addpoint l5r at=40,33 after=l5t mode=catmull-rom tension=-0.66
+  addpoint l5b at=30,43 after=l5r mode=catmull-rom tension=-0.66
+  addpoint l5l at=20,33 after=l5b mode=catmull-rom tension=-0.66
+  close
+  subpath
+  addpoint d1-top at=20,47 mode=catmull-rom tension=-0.66
+  addpoint d1-right at=25,52 after=d1-top mode=catmull-rom tension=-0.66
+  addpoint d1-bot at=20,57 after=d1-right mode=catmull-rom tension=-0.66
+  addpoint d1-left at=15,52 after=d1-bot mode=catmull-rom tension=-0.66
+  close
+  subpath
+  addpoint d2-top at=9,58 mode=catmull-rom tension=-0.66
+  addpoint d2-right at=12,61 after=d2-top mode=catmull-rom tension=-0.66
+  addpoint d2-bot at=9,64 after=d2-right mode=catmull-rom tension=-0.66
+  addpoint d2-left at=6,61 after=d2-bot mode=catmull-rom tension=-0.66
+  close
+
+# @meaning A rounded rectangular callout with a short pointer tail at the
+#   top edge (tooltips, UI callouts). Canvas 80x56.
+# @tags callout, tooltip, bubble, hint, popover, ui
+shape callout-rounded template=path
+  addpoint tl at=8,10 mode=arc rx=8 ry=8 bulge=left
+  addpoint tail-l at=34,10
+  addpoint tail-tip at=40,0 after=tail-l
+  addpoint tail-r at=46,10 after=tail-tip
+  addpoint tr-start at=72,10 after=tail-r
+  addpoint tr at=80,18 after=tr-start mode=arc rx=8 ry=8 bulge=left
+  addpoint rr at=80,48 after=tr
+  addpoint br at=72,56 after=rr mode=arc rx=8 ry=8 bulge=left
+  addpoint bl at=8,56 after=br
+  addpoint bl-corner at=0,48 after=bl mode=arc rx=8 ry=8 bulge=left
+  addpoint lr at=0,18 after=bl-corner
+  close
+
+# @meaning A ribbon banner with folded/notched ends (labels, badges,
+#   "new" tags). Canvas 90x28.
+# @tags banner, ribbon, label, badge, tag, flag
+shape banner-ribbon template=path
+  addpoint tl at=8,0
+  addpoint tr at=82,0
+  addpoint r-out at=90,14 after=tr
+  addpoint br at=82,28 after=r-out
+  addpoint bl at=8,28 after=br
+  addpoint l-out at=0,14 after=bl
+  close

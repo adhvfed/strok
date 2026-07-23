@@ -1,0 +1,7 @@
+---
+source: strok-render/tests/golden.rs
+expression: svg
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+    <path id="card" d="M25 30 L75 30 L75 70 L25 70Z" fill="#4488cc" stroke="#1a1a1a" stroke-width="2" transform="matrix(1, 0, 0.36397023426620234, 1, -18.198511713310126, 0)" />
+</svg>

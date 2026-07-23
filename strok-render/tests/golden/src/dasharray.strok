@@ -1,0 +1,10 @@
+# Canary: a dashed stroke (stroke-dasharray).
+documentsize 100x100
+
+shape dashed template=rectangle
+  fill none
+  stroke #1a1a1a
+  stroke-width 4
+  stroke-dasharray 8 5
+
+place dashed shape=dashed at=15,15 size=70x70

@@ -1,0 +1,40 @@
+[workspace]
+members = ["strok-core", "strok-render", "strok-targets", "strok-cli", "xtask"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/adrianhelvik/strok"
+homepage = "https://github.com/adrianhelvik/strok"
+readme = "README.md"
+
+# Shared dependency versions. Pinning the resvg/usvg/tiny-skia chain to exact
+# versions keeps anti-aliasing reproducible so the golden PNG comparator (see
+# strok-render/tests/golden.rs) behaves the same on every machine + CI runner.
+# AA output is sensitive to these crates' tessellation; do not float them.
+[workspace.dependencies]
+resvg = "=0.47.0"
+usvg = "=0.47.0"
+tiny-skia = "=0.12.0"
+
+# Dev/test tooling shared across crates.
+insta = "1.40"
+proptest = "1.5"
+assert_cmd = "2.0"
+predicates = "3.1"
+image = { version = "0.25", default-features = false, features = ["png"] }
+criterion = { version = "0.5", default-features = false }
+
+# Workspace-wide lints.
+#
+# The no-panic trio (unwrap_used / expect_used / panic) is the policy gate. It is
+# enforced as a hard `deny` precisely where it matters — strok-core *library*
+# code — via `#![cfg_attr(not(test), deny(...))]` in strok-core/src/lib.rs. We do
+# NOT set it tree-wide here because that would also fire on test scaffolding and
+# the CLI's top-level error plumbing, which are legitimately allowed to unwrap.
+# These workspace lints catch the general-correctness clippy classes everywhere.
+[workspace.lints.clippy]
+# (no-panic trio handled per-crate; see note above)

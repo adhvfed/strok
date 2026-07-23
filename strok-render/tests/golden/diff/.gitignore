@@ -1,0 +1,2 @@
+# Golden diff PNGs are generated on failure for human review; never commit them.
+*.diff.png

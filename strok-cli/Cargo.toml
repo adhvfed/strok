@@ -1,0 +1,30 @@
+[package]
+name = "strok-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+description = "Command-line interface and MCP server for the Strøk vector toolkit"
+
+[[bin]]
+name = "strok"
+path = "src/main.rs"
+
+[dependencies]
+strok-core = { version = "0.1.0", path = "../strok-core" }
+strok-render = { version = "0.1.0", path = "../strok-render" }
+strok-targets = { version = "0.1.0", path = "../strok-targets" }
+anyhow = "1.0.103"
+clap = { version = "4", features = ["derive"] }
+resvg = { workspace = true }
+
+[dev-dependencies]
+assert_cmd = { workspace = true }
+predicates = { workspace = true }
+insta = { workspace = true }
+
+[lints]
+workspace = true

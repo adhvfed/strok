@@ -1,0 +1,9 @@
+# C4 E2.3: a skewed place. Locks the unified-affine `matrix(...)` skew emit.
+documentsize 100x100
+
+shape card template=rectangle
+  fill #4488cc
+  stroke #1a1a1a
+  stroke-width 2
+
+place card shape=card at=25,30 size=50x40 skew=20,0

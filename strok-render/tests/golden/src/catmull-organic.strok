@@ -1,0 +1,16 @@
+# Canary: a catmull-rom organic curve (the legitimate use — a leaf-like blob).
+# Locks the cardinal-spline control-point output (Cause A surface).
+documentsize 100x100
+
+shape leaf template=path
+  addpoint a at=20,80
+  addpoint b at=35,30 mode=catmull-rom tension=0.0
+  addpoint c at=60,20 mode=catmull-rom tension=0.0
+  addpoint d at=85,55 mode=catmull-rom tension=0.0
+  addpoint e at=60,85 mode=catmull-rom tension=0.0
+  close
+  fill #4a8c2a
+  stroke #2a5c14
+  stroke-width 2
+
+place leaf shape=leaf at=0,0 size=100x100

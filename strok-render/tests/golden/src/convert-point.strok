@@ -1,0 +1,17 @@
+# C4 E2.5: convert-point. A diamond whose lower point is converted to an arc,
+# and whose right point is converted to explicit cubic controls.
+documentsize 100x100
+
+shape kite template=path
+  addpoint top at=50,12
+  addpoint right at=85,50
+  addpoint bottom at=50,88
+  addpoint left at=15,50
+  close
+  convert-point bottom to=arc
+  convert-point right to=controls
+  fill #c8863a
+  stroke #1a1a1a
+  stroke-width 2
+
+place kite shape=kite at=0,0

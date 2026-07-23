@@ -1,0 +1,7 @@
+---
+source: strok-render/tests/golden.rs
+expression: svg
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+    <path id="body" d="M0 0 C4.41828 0, 8 5.37258, 8 12 C8 18.6274, 4.41828 24, 0 24 L24 24 C20.3181 24, 17.3333 19.5228, 17.3333 14 C17.3333 8.47715, 20.3181 4, 24 4 L10.6667 4 L8 0Z" fill="none" stroke="currentColor" stroke-width="2" />
+</svg>
