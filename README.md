@@ -58,8 +58,10 @@ place head shape=head at=0,0 size=200x200
 ```
 
 Editing by hand? `strok watch face.strok` opens a live browser preview that
-re-renders on every save — parse errors show inline while the last good render
-stays visible.
+re-renders on every save. Its shape editor lets you drag named points and
+Bézier controls, split segments, and delete points; every edit is written back
+to the plain-text `.strok` source. Parse errors show inline while the last good
+render stays visible.
 
 Run `strok --help` for the complete workflow and DSL guide. See
 [DSL_SPEC.md](DSL_SPEC.md) for the language reference,
@@ -79,9 +81,10 @@ Each preview links directly to its editable `.strok` source.
 
 The parser, geometry engine, renderer, CLI, framework targets, standard shape
 library, and MCP server are implemented and covered by automated tests. Strøk
-does not currently include a graphical editor. Rasterized text uses system
-fonts, so exact glyph rendering can vary between machines; deterministic SVG
-snapshots are the authoritative rendering tests.
+includes focused point editing in `watch`; broader scene composition remains
+file- and CLI-first. Rasterized text uses system fonts, so exact glyph rendering
+can vary between machines; deterministic SVG snapshots are the authoritative
+rendering tests.
 
 See [ROADMAP.md](ROADMAP.md) for planned work and
 [CONTRIBUTING.md](CONTRIBUTING.md) to contribute.

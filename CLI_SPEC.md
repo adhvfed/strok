@@ -835,6 +835,11 @@ Events with no manual refresh.
 - Parse errors are shown in the page with their caret diagnostics while the
   **last good render stays visible** (dimmed), so the preview never goes blank
   mid-edit.
+- **Edit shape** opens a focused geometry view for any local named shape. Drag
+  anchors or explicit Bézier handles, use the midpoint `+` controls to split a
+  segment, and remove a selected point with the button or Delete/Backspace.
+  Edits are immediately written back to the watched `.strok` file; imported
+  module shapes remain read-only and are not offered in the editor.
 - The preview backdrop cycles checkerboard → white → black to judge
   transparency and both polarities.
 - `--port` defaults to an ephemeral free port; the chosen URL is printed on
@@ -842,8 +847,9 @@ Events with no manual refresh.
 - `--scheme <name>`: resolve `$token` colors with the named colorscheme.
 - `--no-open`: don't launch the browser (print the URL only).
 - This is the only long-running command besides `mcp-server`; stop it with
-  Ctrl-C. The file on disk remains the single source of truth — the server
-  holds no document state.
+  Ctrl-C. The file on disk remains the single source of truth. Browser edits
+  round-trip through the same parser and canonical DSL emitter used by CLI
+  mutations.
 
 ### `batch`
 

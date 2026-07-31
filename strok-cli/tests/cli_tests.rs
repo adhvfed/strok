@@ -1607,6 +1607,23 @@ fn watch_http_get(port: u16, path: &str) -> String {
     out
 }
 
+/// One form-encoded HTTP POST against the watch server.
+fn watch_http_post(port: u16, path: &str, body: &str) -> String {
+    use std::io::{Read, Write};
+    let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).expect("connect");
+    write!(
+        stream,
+        "POST {} HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        path,
+        body.len(),
+        body
+    )
+    .unwrap();
+    let mut out = String::new();
+    stream.read_to_string(&mut out).unwrap();
+    out
+}
+
 #[test]
 fn watch_serves_preview_and_rerenders_on_change() {
     use std::io::BufRead;
@@ -1688,6 +1705,83 @@ fn watch_serves_preview_and_rerenders_on_change() {
         );
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
+
+    child.kill().unwrap();
+    let _ = child.wait();
+    cleanup(&strok_path);
+}
+
+#[test]
+fn watch_visually_edits_points_controls_and_topology() {
+    use std::io::BufRead;
+
+    let strok_path = write_temp_strok(concat!(
+        "documentsize 100x100\n",
+        "\n",
+        "shape curve template=path\n",
+        "  addpoint a at=10,10\n",
+        "  addpoint b at=60,20 mode=controls c1=25,5 c2=50,15\n",
+        "  addpoint c at=70,70\n",
+        "  addpoint d at=10,70\n",
+        "  close\n",
+        "  fill #ff0000\n",
+        "\n",
+        "place curve-preview shape=curve at=0,0\n",
+    ));
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_strok"))
+        .args([
+            "watch",
+            strok_path.to_str().unwrap(),
+            "--no-open",
+            "--port",
+            "0",
+        ])
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn watch");
+    let stderr = child.stderr.take().unwrap();
+    let mut lines = std::io::BufReader::new(stderr).lines();
+    let port: u16 = loop {
+        let line = lines
+            .next()
+            .expect("watch exited before startup line")
+            .unwrap();
+        if let Some(idx) = line.find("127.0.0.1:") {
+            let rest = &line[idx + "127.0.0.1:".len()..];
+            let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+            break digits.parse().unwrap();
+        }
+    };
+
+    let state = watch_http_get(port, "/state.json");
+    assert!(state.contains("\"editor\":[{\"name\":\"curve\""), "{state}");
+    assert!(state.contains("\"controlsEditable\":true"), "{state}");
+
+    let moved = watch_http_post(port, "/edit", "action=move&shape=curve&point=a&x=12&y=14");
+    assert!(moved.contains("200 OK"), "{moved}");
+    let source = fs::read_to_string(&strok_path).unwrap();
+    assert!(source.contains("addpoint a at=12,14"), "{source}");
+
+    let controlled = watch_http_post(
+        port,
+        "/edit",
+        "action=control&shape=curve&point=b&handle=c1&x=30&y=6",
+    );
+    assert!(controlled.contains("200 OK"), "{controlled}");
+    let source = fs::read_to_string(&strok_path).unwrap();
+    assert!(source.contains("c1=30,6"), "{source}");
+
+    let added = watch_http_post(port, "/edit", "action=add&shape=curve&after=a");
+    assert!(added.contains("200 OK"), "{added}");
+    let source = fs::read_to_string(&strok_path).unwrap();
+    assert!(source.contains("addpoint p1"), "{source}");
+    assert!(source.contains("after=a"), "{source}");
+
+    let deleted = watch_http_post(port, "/edit", "action=delete&shape=curve&point=p1");
+    assert!(deleted.contains("200 OK"), "{deleted}");
+    let source = fs::read_to_string(&strok_path).unwrap();
+    assert!(source.contains("deletepoint p1"), "{source}");
 
     child.kill().unwrap();
     let _ = child.wait();
