@@ -328,6 +328,14 @@ fn find_node_in<'a>(nodes: &'a [SceneNode], name: &str) -> Option<&'a SceneNode>
                     return Some(found);
                 }
             }
+            SceneNode::Boolean(b) => {
+                if b.name == name {
+                    return Some(node);
+                }
+                if let Some(found) = find_node_in(&b.children, name) {
+                    return Some(found);
+                }
+            }
             SceneNode::Link(l) if l.name == name => return Some(node),
             SceneNode::Frame(fr) => {
                 if fr.name == name {
@@ -349,11 +357,26 @@ fn find_node_in<'a>(nodes: &'a [SceneNode], name: &str) -> Option<&'a SceneNode>
 pub enum SceneNode {
     Place(Place),
     Group(Group),
+    /// A non-destructive boolean composition. Children remain named/editable;
+    /// the operation is recomputed into one filled path on every resolve.
+    Boolean(Boolean),
     Link(Link),
     /// A layout container (C8 / E4.1).
     Frame(Frame),
     /// A component instance (C8 / E4.2).
     Instance(Instance),
+}
+
+/// A live boolean composition of placed geometry.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Boolean {
+    pub name: String,
+    pub op: crate::bool_ops::BoolOp,
+    /// Boolean operands in authored order. V1 accepts `Place` children; keeping
+    /// SceneNode here leaves room for nested boolean compositions later.
+    pub children: Vec<SceneNode>,
+    /// Fill/stroke/opacity operations applied to the merged result.
+    pub operations: Vec<Operation>,
 }
 
 /// Relative placement anchor.

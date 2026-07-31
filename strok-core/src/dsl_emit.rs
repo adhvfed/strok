@@ -162,6 +162,19 @@ fn find_link_sources(node: &SceneNode) -> Option<Vec<String>> {
                 Some(names)
             }
         }
+        SceneNode::Boolean(b) => {
+            let mut names = Vec::new();
+            for child in &b.children {
+                if let Some(child_names) = find_link_sources(child) {
+                    names.extend(child_names);
+                }
+            }
+            if names.is_empty() {
+                None
+            } else {
+                Some(names)
+            }
+        }
         _ => None,
     }
 }
@@ -530,6 +543,22 @@ fn emit_node(node: &SceneNode, indent: usize, out: &mut String) {
             out.push_str(&group_line);
             for child in &g.children {
                 emit_node(child, indent + 1, out);
+            }
+        }
+        SceneNode::Boolean(b) => {
+            out.push_str(&format!(
+                "{}boolean {} op={}\n",
+                prefix,
+                b.name,
+                b.op.name()
+            ));
+            for child in &b.children {
+                emit_node(child, indent + 1, out);
+            }
+            for op in &b.operations {
+                out.push_str(&format!("{}  ", prefix));
+                emit_operation(op, out);
+                out.push('\n');
             }
         }
         SceneNode::Link(l) => {
@@ -1350,5 +1379,27 @@ place s shape=s at=0,0 size=400x400
         assert_eq!(scene.components.len(), 2, "expected button + navitem");
         assert!(scene.shapes.iter().any(|s| s.is_text()), "has text shape");
         assert!(!scene.design_tokens.is_empty(), "has generalized tokens");
+    }
+
+    #[test]
+    fn round_trip_live_boolean_preserves_editable_operands() {
+        let input = "\
+documentsize 100x100
+
+shape block template=rectangle
+
+boolean silhouette op=union
+  place head shape=block at=10,10 size=30x30
+  place neck shape=block at=25,30 size=20x40 rotation=8
+  fill #f7f3ea
+  stroke none
+";
+        let scene = dsl_parse::parse_file(input).unwrap();
+        let output = emit_scene(&scene);
+        assert!(output.contains("boolean silhouette op=union"), "{output}");
+        assert!(output.contains("place head shape=block"), "{output}");
+        assert!(output.contains("place neck shape=block"), "{output}");
+        let scene2 = dsl_parse::parse_file(&output).unwrap();
+        assert_eq!(scene, scene2);
     }
 }

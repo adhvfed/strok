@@ -5,8 +5,11 @@ The `.strok` file format is a human-readable text DSL for vector documents. It i
 ## Design Principles
 
 1. **Readable geometry.** Points are named. Curves are described by intent (catmull-rom, tension) not mechanism (bezier control handles). Coordinates are small numbers in a local space.
-2. **Two concepts.** `shape` defines reusable geometry + style. `place` puts an instance in the scene at a position and size.
-3. **Indentation-based structure.** Shape operations are indented under the `shape` line. Group children are indented under the `group` line. No braces.
+2. **Small concepts.** `shape` defines reusable geometry + style. Scene nodes place
+   that geometry or compose named placements without destroying their source.
+3. **Indentation-based structure.** Shape operations are indented under the
+   `shape` line. Group children and boolean operands are indented under their
+   parent line. No braces.
 4. **Progressive complexity.** Simple documents are simple. Advanced features (effects, modules, arcs) are available but never required.
 
 ---
@@ -26,7 +29,7 @@ place bg shape=bg at=0,0 size=600x800
 place face shape=face at=220,210 size=160x180
 ```
 
-The `documentsize` line declares canvas dimensions. Everything else is either a shape definition or a scene node (place, group, createlink).
+The `documentsize` line declares canvas dimensions. Everything else is either a shape definition or a scene node (place, group, boolean, createlink).
 
 ### Comments
 
@@ -460,6 +463,37 @@ Children are indented under the group line. Group transforms compose with the
 child transforms (nested groups multiply through the unified affine), and a
 group's `clip`/`mask` apply to all its children as a unit. Multi-shape `clip=a,b`
 clips to the union; `mask=` is the soft alpha/luminance counterpart to `clip`.
+
+### Boolean
+
+A `boolean` block combines named placed shapes into one rendered path while
+keeping every operand readable and editable in the source:
+
+```text
+shape head template=ellipse
+shape neck template=rectangle
+
+boolean horse-silhouette op=union
+  place head shape=head at=8,5 size=24x20 rotation=-8
+  place neck shape=neck at=18,18 size=16x22 skew=-6
+  fill #f7f3ea
+  stroke none
+```
+
+`op=` is `union`, `subtract`, `intersect`, or `exclude`. A block requires at
+least two `place` operands. The children do not render separately; Strøk resolves
+their complete document-space geometry—including size, flip, rotation, and
+skew—and emits the result as one path with the boolean block's name and style.
+
+Unlike the destructive `strok bool` CLI command, a live boolean does not bake
+the result into a new path shape. Moving an operand or refining its source shape
+recomputes the compound on the next `render` or `watch` refresh. `inspect` still
+reports the boolean and its named operands, making this the preferred form for
+compound illustrations that need continued refinement.
+
+In the current syntax, boolean blocks are top-level and their direct operands
+are places. Build more involved operand geometry as reusable path shapes, then
+place those shapes in the block.
 
 ### Createlink
 

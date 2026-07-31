@@ -174,6 +174,11 @@ fn lower_node(ctx: &LowerCtx, node: &SceneNode) -> Option<UiNode> {
             // as an inline SVG leaf so the vector content is preserved.
             Some(lower_group(ctx, &group.name))
         }
+        SceneNode::Boolean(boolean) => {
+            // A live boolean is resolved to its cohesive path before it reaches
+            // UI targets, while its editable operands remain in the source.
+            Some(lower_group(ctx, &boolean.name))
+        }
         SceneNode::Link(_) => None,
     }
 }

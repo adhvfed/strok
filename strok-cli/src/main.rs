@@ -1207,6 +1207,10 @@ image at its real viewing size. Plan enough visual review for the requested bar.
    and background. Establish silhouettes and overlap before texture or decoration.
    Give each visual role a named shape: body, rim, inner rim, handle, cast shadow,
    highlight. Reuse real geometry; do not force unrelated roles into one path.
+   When several parts must read as one outer silhouette, put named placements in
+   a live `boolean <name> op=union` block. It recomputes on every render while
+   each operand stays available to `inspect` and `render --node`. Reserve the
+   destructive `strok bool` command for an intentionally baked final path.
 
 4. RUN THE VISUAL FEEDBACK LOOP
 
@@ -1252,6 +1256,8 @@ const ILLUSTRATION_GUIDE: &str = r#"ILLUSTRATION WORKFLOW — build depth, mater
    liquid + inner rim + base shadow + highlight. An open book has a shared spine,
    curved page silhouettes, page thickness, and text lines that follow each page.
    Name those roles so `render --node`, `query`, and annotated renders stay useful.
+   If those parts must share one seamless silhouette, combine their named places
+   in a live `boolean ... op=union` block instead of copying or baking path data.
 
 4. Match geometry to the material:
    - hard manufactured edges: arcs, true round-corners, or explicit Bézier controls

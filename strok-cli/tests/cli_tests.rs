@@ -78,6 +78,42 @@ fn inspect_svg_accepts_shape_name() {
 }
 
 #[test]
+fn inspect_structural_keeps_live_boolean_operands_named() {
+    let strok_path = write_temp_strok(concat!(
+        "documentsize 100x100\n",
+        "\n",
+        "shape block template=rectangle\n",
+        "\n",
+        "boolean silhouette op=union\n",
+        "  place head shape=block at=10,10 size=30x30\n",
+        "  place neck shape=block at=25,25 size=20x45 rotation=8\n",
+        "  fill #f7f3ea\n",
+    ));
+
+    let output = Command::new(env!("CARGO_BIN_EXE_strok"))
+        .args([
+            "-f",
+            strok_path.to_str().unwrap(),
+            "inspect",
+            "--detail",
+            "structural",
+        ])
+        .output()
+        .expect("run strok inspect");
+
+    cleanup(&strok_path);
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).expect("stdout utf8");
+    assert!(stdout.contains("silhouette (boolean-union)"), "{stdout}");
+    assert!(stdout.contains("head (rectangle)"), "{stdout}");
+    assert!(stdout.contains("neck (rectangle)"), "{stdout}");
+}
+
+#[test]
 fn render_node_accepts_shape_name() {
     let strok_path = write_temp_strok(concat!(
         "documentsize 120x120\n",
@@ -246,6 +282,7 @@ fn agent_intro_sets_effort_and_requires_focused_visual_review() {
         "showcase",
         "render --region",
         "render --outline",
+        "live `boolean",
         "thumbnail or",
         "Technically valid",
     ] {

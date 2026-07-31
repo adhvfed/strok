@@ -1291,6 +1291,7 @@ fn collect_all_places(nodes: &[SceneNode]) -> Vec<&Place> {
         match node {
             SceneNode::Place(p) => places.push(p),
             SceneNode::Group(g) => places.extend(collect_all_places(&g.children)),
+            SceneNode::Boolean(b) => places.extend(collect_all_places(&b.children)),
             SceneNode::Frame(fr) => places.extend(collect_all_places(&fr.children)),
             SceneNode::Link(_) | SceneNode::Instance(_) => {}
         }
@@ -1305,6 +1306,11 @@ fn find_place_in<'a>(nodes: &'a [SceneNode], name: &str) -> Option<&'a Place> {
             SceneNode::Place(p) if p.name == name => return Some(p),
             SceneNode::Group(g) => {
                 if let Some(found) = find_place_in(&g.children, name) {
+                    return Some(found);
+                }
+            }
+            SceneNode::Boolean(b) => {
+                if let Some(found) = find_place_in(&b.children, name) {
                     return Some(found);
                 }
             }

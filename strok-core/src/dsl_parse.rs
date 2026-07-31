@@ -24,6 +24,7 @@ const TOP_LEVEL_KEYWORDS: &[&str] = &[
     "shape",
     "place",
     "group",
+    "boolean",
     "createlink",
     "unlink",
     "repeat",
@@ -521,6 +522,12 @@ impl LineParser {
                 let body = self.collect_body(base_indent);
                 let group = parse_group_block(&line, &body, &self.env, &mut scene.shapes)?;
                 scene.nodes.push(SceneNode::Group(group));
+            }
+            "boolean" => {
+                let line = self.advance().clone();
+                let body = self.collect_body(base_indent);
+                let boolean = parse_boolean_block(&line, &body, &self.env)?;
+                scene.nodes.push(SceneNode::Boolean(boolean));
             }
             "createlink" => {
                 let line = self.advance().clone();
@@ -1677,6 +1684,88 @@ fn parse_group_block(
     expand_nodes(body, env, "", &empty, &mut children, out_shapes)?;
     group.children = children;
     Ok(group)
+}
+
+// ── Live boolean parsing ────────────────────────────────────────────────────
+
+/// Parse a non-destructive boolean composition:
+///
+/// ```text
+/// boolean silhouette op=union
+///   place head shape=head center=20,15 size=12x14
+///   place neck shape=neck at=15,18
+///   fill #f7f3ea
+/// ```
+fn parse_boolean_block(line: &Line, body: &[Line], env: &Env) -> Result<Boolean> {
+    if line.tokens.len() < 2 {
+        return Err(parse_err(line, "boolean requires a name"));
+    }
+    let name = line.tokens[1].clone();
+    validate_ident(&name).map_err(|e| parse_err(line, &format!("invalid boolean name: {e}")))?;
+    let attrs = parse_kv_attrs(&line.tokens[2..]);
+    for key in attrs.keys() {
+        if key != "op" {
+            return Err(parse_err(
+                line,
+                &format!("unknown boolean attribute '{}=' (valid: op=)", key),
+            ));
+        }
+    }
+    let op_raw = attrs
+        .get("op")
+        .ok_or_else(|| parse_err(line, "boolean requires op=union|subtract|intersect|exclude"))?;
+    let op = crate::bool_ops::BoolOp::parse(op_raw).map_err(|e| parse_err(line, &e.to_string()))?;
+
+    let mut children = Vec::new();
+    let mut operations = Vec::new();
+    let mut i = 0;
+    while i < body.len() {
+        let body_line = &body[i];
+        let base_indent = body_line.indent;
+        let mut sub_body = Vec::new();
+        let mut j = i + 1;
+        while j < body.len() && body[j].indent > base_indent {
+            sub_body.push(body[j].clone());
+            j += 1;
+        }
+        match body_line.tokens[0].as_str() {
+            "place" => children.push(SceneNode::Place(parse_place_line(
+                body_line, &sub_body, env,
+            )?)),
+            "fill" => operations.push(parse_fill(body_line)?),
+            "fill-rule" => operations.push(parse_fill_rule(body_line)?),
+            "stroke" => operations.push(parse_stroke(body_line)?),
+            "stroke-width" => operations.push(parse_stroke_width(body_line)?),
+            "stroke-linecap" => operations.push(parse_stroke_linecap(body_line)?),
+            "stroke-linejoin" => operations.push(parse_stroke_linejoin(body_line)?),
+            "stroke-miterlimit" => operations.push(parse_stroke_miterlimit(body_line)?),
+            "stroke-dasharray" => operations.push(parse_stroke_dasharray(body_line)?),
+            "opacity" => operations.push(parse_opacity(body_line)?),
+            "blur" => operations.push(parse_blur(body_line)?),
+            keyword => {
+                return Err(parse_err(
+                    body_line,
+                    &format!(
+                        "unexpected '{}' in boolean (allowed: place and fill/stroke/opacity/blur styles)",
+                        keyword
+                    ),
+                ));
+            }
+        }
+        i = j;
+    }
+    if children.len() < 2 {
+        return Err(parse_err(
+            line,
+            "boolean requires at least two placed operands",
+        ));
+    }
+    Ok(Boolean {
+        name,
+        op,
+        children,
+        operations,
+    })
 }
 
 // ── Link parsing ──────────────────────────────────────────────────────
@@ -4178,5 +4267,48 @@ shape curve template=path
 ";
         let err = parse_file(input).unwrap_err().to_string();
         assert!(err.contains("controls modes require both c1=x,y and c2=x,y"));
+    }
+
+    #[test]
+    fn parse_live_boolean_with_named_operands_and_style() {
+        let input = "\
+documentsize 100x100
+
+shape block template=rectangle
+
+boolean silhouette op=union
+  place head shape=block at=10,10 size=30x30
+  place neck shape=block at=25,30 size=20x40 rotation=8
+  fill #f7f3ea
+  stroke #332f29
+  stroke-width 1.5
+";
+        let scene = parse_file(input).unwrap();
+        let SceneNode::Boolean(boolean) = &scene.nodes[0] else {
+            panic!("expected live boolean");
+        };
+        assert_eq!(boolean.name, "silhouette");
+        assert_eq!(boolean.op, crate::bool_ops::BoolOp::Union);
+        assert_eq!(boolean.children.len(), 2);
+        assert_eq!(boolean.operations.len(), 3);
+        let SceneNode::Place(neck) = &boolean.children[1] else {
+            panic!("expected named place operand");
+        };
+        assert_eq!(neck.name, "neck");
+        assert_eq!(neck.rotation, Some(crate::types::Rotation(8.0)));
+    }
+
+    #[test]
+    fn live_boolean_requires_two_operands() {
+        let input = "\
+documentsize 100x100
+
+shape block template=rectangle
+
+boolean silhouette op=union
+  place head shape=block at=10,10 size=30x30
+";
+        let err = parse_file(input).unwrap_err().to_string();
+        assert!(err.contains("at least two placed operands"), "{err}");
     }
 }

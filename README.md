@@ -11,6 +11,8 @@ components editable, reviewable, and easy to generate.
 ## What it does
 
 - Authors vector scenes in a readable text format or through CLI commands.
+- Keeps compound silhouettes editable with live `boolean` blocks whose named
+  operands recompute on every render.
 - Renders SVG and PNG, including icon batches and contact sheets.
 - Inspects, queries, measures, audits, and visually compares designs.
 - Generates React, Solid, vanilla HTML/CSS, Tailwind, and DTCG token output.

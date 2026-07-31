@@ -137,6 +137,15 @@ fn collect_elements(
                 });
                 collect_elements(scene, &g.children, boxes, out);
             }
+            SceneNode::Boolean(b) => {
+                out.push(Element {
+                    name: b.name.clone(),
+                    kind: format!("boolean-{}", b.op.name()),
+                    shape_ref: String::new(),
+                    bbox: boxes.get(&b.name).copied(),
+                });
+                collect_elements(scene, &b.children, boxes, out);
+            }
             SceneNode::Frame(fr) => {
                 out.push(Element {
                     name: fr.name.clone(),

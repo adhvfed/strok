@@ -284,6 +284,11 @@ fn annotate_collect(
                 }
                 annotate_collect(&g.children, boxes, out);
             }
+            SceneNode::Boolean(b) => {
+                if let Some(bounds) = boxes.get(&b.name) {
+                    out.push((b.name.clone(), *bounds));
+                }
+            }
             SceneNode::Frame(fr) => {
                 if let Some(b) = boxes.get(&fr.name) {
                     out.push((fr.name.clone(), *b));
@@ -368,6 +373,7 @@ pub fn placed_document_d_with_bboxes(
 ) -> Option<String> {
     let place = match scene.find_node(place_name) {
         Some(SceneNode::Place(p)) => p,
+        Some(SceneNode::Boolean(boolean)) => return boolean_document_d(scene, boolean),
         _ => return None,
     };
     let shape = scene.find_shape(&place.shape_ref)?;
@@ -385,7 +391,10 @@ pub fn placed_document_d_with_bboxes(
         size: place.size.map(|d| (d.w, d.h)),
         flip: place.flip.map(convert_flip),
     };
-    let d = path_data_to_svg_d(&pd, Some(&placement));
+    let mut d = path_data_to_svg_d(&pd, Some(&placement));
+    if let Some(transform) = place_post_transform(place, Some(&placement)) {
+        d = crate::bool_ops::transform_svg_d(&d, &transform)?;
+    }
     if d.is_empty() {
         None
     } else {
@@ -512,6 +521,9 @@ fn resolve_node(
 
             svg.push_str(&format!("{}  </g>\n", prefix));
         }
+        SceneNode::Boolean(boolean) => {
+            resolve_boolean(scene, boolean, &prefix, svg, bboxes, svg_defs);
+        }
         SceneNode::Link(_) => {
             // Links are stored as shapes and resolved through place references.
         }
@@ -627,6 +639,10 @@ fn collect_node_names(nodes: &[SceneNode]) -> Vec<String> {
                 names.push(g.name.clone());
                 names.extend(collect_node_names(&g.children));
             }
+            SceneNode::Boolean(b) => {
+                names.push(b.name.clone());
+                names.extend(collect_node_names(&b.children));
+            }
             SceneNode::Link(l) => names.push(l.name.clone()),
             SceneNode::Frame(fr) => {
                 names.push(fr.name.clone());
@@ -636,6 +652,114 @@ fn collect_node_names(nodes: &[SceneNode]) -> Vec<String> {
         }
     }
     names
+}
+
+/// Resolve a non-destructive boolean block. Its children stay readable in the
+/// source/inspection model, while only the merged path is emitted visually.
+fn resolve_boolean(
+    scene: &Scene,
+    boolean: &Boolean,
+    prefix: &str,
+    svg: &mut String,
+    bboxes: &mut HashMap<String, Bbox>,
+    svg_defs: &mut Vec<SvgDef>,
+) {
+    let mut child_scene = scene.clone();
+    child_scene.nodes = boolean.children.clone();
+    let child_boxes = element_bboxes(&child_scene);
+    bboxes.extend(child_boxes);
+
+    let Some(merged) = resolve_boolean_shape(&child_scene, boolean) else {
+        return;
+    };
+    let pd = merged.resolve((scene.document_size.w, scene.document_size.h));
+    let d = path_data_to_svg_d(&pd, None);
+    if d.is_empty() {
+        return;
+    }
+    bboxes.insert(boolean.name.clone(), natural_bbox(&pd));
+
+    let fill = resolve_fill(&boolean.operations, &merged, &scene.defaults);
+    let stroke = resolve_stroke(&boolean.operations, &merged, &scene.defaults);
+    let fill = match (&fill, &stroke) {
+        (None, Some(_)) => Some(Color::None),
+        _ => fill,
+    };
+    let stroke_width = resolve_stroke_width(&boolean.operations, &merged, &scene.defaults);
+    let stroke_linecap = resolve_linecap(&boolean.operations, &merged, &scene.defaults);
+    let stroke_linejoin = resolve_linejoin(&boolean.operations, &merged, &scene.defaults);
+    let stroke_miterlimit = resolve_miterlimit(&boolean.operations, &merged, &scene.defaults);
+    let fill_rule = resolve_fill_rule(&boolean.operations, &merged, &scene.defaults);
+    let stroke_dasharray = resolve_stroke_dasharray(&boolean.operations, &merged, &scene.defaults);
+    let opacity = resolve_opacity(&boolean.operations, &merged, &scene.defaults);
+    let blur = resolve_blur(&boolean.operations, &merged, &scene.defaults);
+    let fill_ref = register_gradient_color(&fill, &boolean.name, "fill", svg_defs);
+    let stroke_ref = register_gradient_color(&stroke, &boolean.name, "stroke", svg_defs);
+    let blur_ref = register_blur_filter(&blur, &boolean.name, svg_defs);
+
+    svg.push_str(prefix);
+    svg.push_str(&format!("  <path id=\"{}\" d=\"{}\"", boolean.name, d));
+    emit_svg_fill_ref(&fill, &fill_ref, svg);
+    if let Some(rule) = fill_rule {
+        svg.push_str(&format!(" fill-rule=\"{}\"", rule.svg_value()));
+    }
+    emit_svg_stroke_ref(&stroke, &stroke_ref, svg);
+    if let Some(width) = stroke_width {
+        svg.push_str(&format!(" stroke-width=\"{}\"", types::fmt_num(width)));
+    }
+    if let Some(cap) = stroke_linecap {
+        svg.push_str(&format!(" stroke-linecap=\"{}\"", cap));
+    }
+    if let Some(join) = stroke_linejoin {
+        svg.push_str(&format!(" stroke-linejoin=\"{}\"", join));
+    }
+    if let Some(limit) = stroke_miterlimit {
+        svg.push_str(&format!(" stroke-miterlimit=\"{}\"", types::fmt_num(limit)));
+    }
+    if let Some(dashes) = stroke_dasharray {
+        let values = dashes
+            .iter()
+            .map(|value| types::fmt_num(*value))
+            .collect::<Vec<_>>()
+            .join(" ");
+        svg.push_str(&format!(" stroke-dasharray=\"{}\"", values));
+    }
+    if let Some(value) = opacity {
+        svg.push_str(&format!(" opacity=\"{}\"", types::fmt_num(value)));
+    }
+    if let Some(filter) = blur_ref {
+        svg.push_str(&format!(" filter=\"url(#{})\"", filter));
+    }
+    svg.push_str(" />\n");
+}
+
+fn resolve_boolean_shape(scene: &Scene, boolean: &Boolean) -> Option<Shape> {
+    let mut operands = Vec::with_capacity(boolean.children.len());
+    for child in &boolean.children {
+        let SceneNode::Place(place) = child else {
+            continue;
+        };
+        let d = placed_document_d(scene, &place.name)?;
+        let rule = placed_fill_rule(scene, &place.name);
+        operands.push((d, rule));
+    }
+    if operands.len() < 2 {
+        return None;
+    }
+    Some(crate::bool_ops::combine(
+        boolean.op,
+        &operands,
+        &boolean.name,
+    ))
+}
+
+fn boolean_document_d(scene: &Scene, boolean: &Boolean) -> Option<String> {
+    let mut child_scene = scene.clone();
+    child_scene.nodes = boolean.children.clone();
+    let shape = resolve_boolean_shape(&child_scene, boolean)?;
+    let pd = shape.resolve((scene.document_size.w, scene.document_size.h));
+    let d = path_data_to_svg_d(&pd, None);
+    (!d.is_empty()).then_some(d)
 }
 
 fn resolve_place(
@@ -1659,6 +1783,10 @@ fn validate_nodes(
                 validate_nodes(&g.children, all, all_set, seen)?;
                 seen.insert(g.name.clone());
             }
+            SceneNode::Boolean(b) => {
+                validate_nodes(&b.children, all, all_set, seen)?;
+                seen.insert(b.name.clone());
+            }
             SceneNode::Frame(fr) => {
                 // A frame's own bbox is registered before its children resolve,
                 // so children may anchor to it.
@@ -1779,6 +1907,10 @@ fn resolve_color_nodes(
             SceneNode::Place(p) => resolve_color_ops(&mut p.overrides, palette, scheme)?,
             SceneNode::Link(l) => resolve_color_ops(&mut l.overrides, palette, scheme)?,
             SceneNode::Group(g) => resolve_color_nodes(&mut g.children, palette, scheme)?,
+            SceneNode::Boolean(b) => {
+                resolve_color_nodes(&mut b.children, palette, scheme)?;
+                resolve_color_ops(&mut b.operations, palette, scheme)?;
+            }
             SceneNode::Frame(fr) => {
                 if let Some(c) = fr.fill.as_mut() {
                     resolve_color(c, palette, scheme)?;
@@ -3431,5 +3563,70 @@ place arc shape=arc at=0,0
             svg.contains("A50 50 0 0 0"),
             "bulge=left overrides sweep=1, got {svg}"
         );
+    }
+
+    #[test]
+    fn live_union_emits_one_path_but_keeps_operand_geometry_live() {
+        let base = "\
+documentsize 100x100
+
+shape block template=rectangle
+
+boolean silhouette op=union
+  place head shape=block at=10,10 size=30x30
+  place neck shape=block at=NECK_X,25 size=20x45
+  fill #f7f3ea
+  stroke none
+";
+        let scene_a = dsl_parse::parse_file(&base.replace("NECK_X", "25")).unwrap();
+        let scene_b = dsl_parse::parse_file(&base.replace("NECK_X", "35")).unwrap();
+        let svg_a = resolve_scene(&scene_a);
+        let svg_b = resolve_scene(&scene_b);
+
+        assert!(svg_a.contains("id=\"silhouette\""), "{svg_a}");
+        assert!(
+            !svg_a.contains("id=\"head\""),
+            "operands must not double-render"
+        );
+        assert!(
+            !svg_a.contains("id=\"neck\""),
+            "operands must not double-render"
+        );
+        assert_ne!(svg_a, svg_b, "editing an operand must recompute the union");
+
+        let boxes_a = element_bboxes(&scene_a);
+        let boxes_b = element_bboxes(&scene_b);
+        assert!(boxes_a.contains_key("head"), "operand remains inspectable");
+        assert!(boxes_a.contains_key("neck"), "operand remains inspectable");
+        assert_ne!(boxes_a["silhouette"], boxes_b["silhouette"]);
+    }
+
+    #[test]
+    fn document_geometry_bakes_place_rotation_for_boolean_operands() {
+        use kurbo::{BezPath, Shape as _};
+
+        let source = |rotation: &str| {
+            format!(
+                "\
+documentsize 100x100
+
+shape block template=rectangle
+
+place part shape=block at=40,45 size=20x10{rotation}
+"
+            )
+        };
+        let plain = dsl_parse::parse_file(&source("")).unwrap();
+        let turned = dsl_parse::parse_file(&source(" rotation=90")).unwrap();
+        let plain_d = placed_document_d(&plain, "part").unwrap();
+        let turned_d = placed_document_d(&turned, "part").unwrap();
+        assert_ne!(
+            plain_d, turned_d,
+            "rotation must be baked into boolean input"
+        );
+
+        let bounds = BezPath::from_svg(&turned_d).unwrap().bounding_box();
+        assert!((bounds.width() - 10.0).abs() < 1e-6, "{bounds:?}");
+        assert!((bounds.height() - 20.0).abs() < 1e-6, "{bounds:?}");
     }
 }

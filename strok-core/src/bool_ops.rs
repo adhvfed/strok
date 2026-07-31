@@ -124,6 +124,29 @@ pub fn combine(
     shapes_to_shape(out_name, &result, IFillRule::NonZero)
 }
 
+/// Apply an affine transform to an SVG path string. Boolean operands use this
+/// to bake place rotation/skew into their document-space geometry so live and
+/// destructive booleans see exactly what the renderer shows.
+pub fn transform_svg_d(d: &str, transform: &crate::attrs::Transform) -> Option<String> {
+    use kurbo::{BezPath, PathEl, Point};
+    let source = BezPath::from_svg(d).ok()?;
+    let map = |p: Point| {
+        let (x, y) = crate::attrs::apply(transform, p.x, p.y);
+        Point::new(x, y)
+    };
+    let mut out = BezPath::new();
+    for element in source.iter() {
+        match element {
+            PathEl::MoveTo(p) => out.move_to(map(p)),
+            PathEl::LineTo(p) => out.line_to(map(p)),
+            PathEl::QuadTo(p1, p2) => out.quad_to(map(p1), map(p2)),
+            PathEl::CurveTo(p1, p2, p3) => out.curve_to(map(p1), map(p2), map(p3)),
+            PathEl::ClosePath => out.close_path(),
+        }
+    }
+    Some(out.to_svg())
+}
+
 /// Flatten an i_overlay shape-set (`[[outer, hole…], …]`) into a flat contour
 /// list for feeding back into a subsequent overlay step.
 fn flatten_shapes(shapes: &Shapes) -> Vec<Contour> {

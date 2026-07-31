@@ -162,6 +162,14 @@ DSL REFERENCE — everything you can write inside a .strok file:
   group <name> [at=x,y] [rotation=Ndeg] [flip=x|y|xy] [skew=deg|degx,degy] [clip=<shape>[,…]] [mask=<shape>] [opacity=0.8]
     place ...
 
+  boolean <name> op=union|subtract|intersect|exclude
+    place first shape=<ref> ...
+    place second shape=<ref> ...
+    fill #rrggbb | none | $token
+    stroke #rrggbb | none | $token
+    # Non-destructive: named operands remain editable and are recombined on
+    # every render/watch refresh. Rotation and skew are included in geometry.
+
   Computation (C13) — scalar expressions, let bindings, repeat blocks:
     Expressions: any scalar (coords, size, radius, rotation, gap, round-corners,
       addpoint at=) may be a SPACE-FREE arithmetic expression: number | $name |
@@ -191,6 +199,11 @@ SHAPE AUTHORING — how to think about building shapes:
      A badge is a rounded rectangle. A drop is an ellipse pinched at one end.
      A speech bubble is a rectangle + triangle. Start from the template that's
      closest, then sculpt — don't reach for point-by-point tracing first.
+
+     When the parts must become one silhouette but still need refinement, use a
+     live `boolean <name> op=union` block. Its named place operands remain
+     inspectable and recompute on every render. Use the `strok bool` command only
+     when you deliberately want to bake those parts into an opaque path.
 
   2. Choose the right curve mode for the job:
      arc         — circular/elliptical curves (corners, bubbles, UI elements)

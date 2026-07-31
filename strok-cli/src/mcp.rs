@@ -958,6 +958,7 @@ mod tests {
             assert!(text.contains("CHOOSE THE EFFORT LEVEL"));
             assert!(text.contains("render --region"));
             assert!(text.contains("render --outline"));
+            assert!(text.contains("live `boolean"));
             assert!(text.contains("showcase"));
         } else {
             panic!("expected content");
