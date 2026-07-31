@@ -264,6 +264,9 @@ fn handle_client(
         ("GET", "/viewport.js") => {
             respond(&mut stream, "text/javascript; charset=utf-8", VIEWPORT_JS)
         }
+        ("GET", "/selection.js") => {
+            respond(&mut stream, "text/javascript; charset=utf-8", SELECTION_JS)
+        }
         ("GET", "/state.json") => {
             let history = shared.edit.lock().unwrap();
             let can_undo = !history.undo.is_empty();
@@ -481,3 +484,4 @@ const PREVIEW_CSS: &str = include_str!("watch_ui/watch.css");
 const PREVIEW_JS: &str = include_str!("watch_ui/watch.js");
 const PATH_GEOMETRY_JS: &str = include_str!("watch_ui/path-geometry.mjs");
 const VIEWPORT_JS: &str = include_str!("watch_ui/viewport.mjs");
+const SELECTION_JS: &str = include_str!("watch_ui/selection.mjs");

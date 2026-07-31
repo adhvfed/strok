@@ -3,7 +3,7 @@ use super::projection::{
     previous_point,
 };
 use anyhow::{Context, Result};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use strok_core::document::Document;
 use strok_core::path_point::{CurveMode, PathData};
@@ -15,6 +15,22 @@ use strok_core::{dsl_emit, dsl_parse};
 pub(super) struct FileEdit {
     pub(super) before: Vec<u8>,
     pub(super) after: Vec<u8>,
+}
+
+fn point_names(fields: &HashMap<String, String>) -> Result<Vec<&str>> {
+    let names: Vec<_> = required(fields, "points")?
+        .split(',')
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .collect();
+    if names.is_empty() {
+        anyhow::bail!("'points' must contain at least one point name");
+    }
+    let unique: HashSet<_> = names.iter().copied().collect();
+    if unique.len() != names.len() {
+        anyhow::bail!("'points' contains duplicate point names");
+    }
+    Ok(names)
 }
 
 fn required<'a>(fields: &'a HashMap<String, String>, name: &str) -> Result<&'a str> {
@@ -87,6 +103,25 @@ pub(super) fn apply(file: &Path, fields: &HashMap<String, String>) -> Result<Fil
                 .find(|point| point.name == point_name)
                 .ok_or_else(|| anyhow::anyhow!("point '{}' no longer exists", point_name))?;
             move_anchor(shape, &before, point_name, (point.x + dx, point.y + dy))?;
+        }
+        "move-anchors" => {
+            let point_names = point_names(fields)?;
+            let dx = coordinate(fields, "dx")?;
+            let dy = coordinate(fields, "dy")?;
+            let targets: Vec<_> = point_names
+                .iter()
+                .map(|name| {
+                    let point = before
+                        .points
+                        .iter()
+                        .find(|point| point.name == *name)
+                        .ok_or_else(|| anyhow::anyhow!("point '{}' no longer exists", name))?;
+                    Ok((*name, (point.x + dx, point.y + dy)))
+                })
+                .collect::<Result<_>>()?;
+            for (name, target) in targets {
+                move_anchor(shape, &before, name, target)?;
+            }
         }
         "control" => {
             let point_name = required(fields, "point")?;

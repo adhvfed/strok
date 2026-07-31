@@ -1692,6 +1692,10 @@ fn watch_serves_preview_and_rerenders_on_change() {
     assert!(geometry.contains("200 OK"), "{geometry}");
     assert!(geometry.contains("function buildPath"), "{geometry}");
 
+    let selection = watch_http_get(port, "/selection.js");
+    assert!(selection.contains("200 OK"), "{selection}");
+    assert!(selection.contains("class PointSelection"), "{selection}");
+
     let state = watch_http_get(port, "/state.json");
     assert!(state.contains("\"version\":1"), "{state}");
     assert!(state.contains("#ff0000"), "{state}");
@@ -1870,6 +1874,34 @@ fn watch_visually_edits_points_controls_and_topology() {
     assert!(deleted.contains("200 OK"), "{deleted}");
     let source = fs::read_to_string(&strok_path).unwrap();
     assert!(source.contains("deletepoint p1"), "{source}");
+
+    let moved = watch_http_post(
+        port,
+        "/edit",
+        "action=move-anchors&shape=curve&points=c,d&dx=2&dy=-3",
+    );
+    assert!(moved.contains("200 OK"), "{moved}");
+    let source = fs::read_to_string(&strok_path).unwrap();
+    assert!(source.contains("addpoint c at=72,67"), "{source}");
+    assert!(source.contains("addpoint d at=13,65"), "{source}");
+
+    let duplicate = watch_http_post(
+        port,
+        "/edit",
+        "action=move-anchors&shape=curve&points=c,c&dx=1&dy=0",
+    );
+    assert!(duplicate.contains("400 Bad Request"), "{duplicate}");
+    let unchanged = fs::read_to_string(&strok_path).unwrap();
+    assert_eq!(source, unchanged);
+
+    let missing = watch_http_post(
+        port,
+        "/edit",
+        "action=move-anchors&shape=curve&points=c,missing&dx=1&dy=0",
+    );
+    assert!(missing.contains("400 Bad Request"), "{missing}");
+    let unchanged = fs::read_to_string(&strok_path).unwrap();
+    assert_eq!(source, unchanged);
 
     child.kill().unwrap();
     let _ = child.wait();

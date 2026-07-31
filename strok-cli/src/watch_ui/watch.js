@@ -10,14 +10,16 @@
     previousIndex,
     segmentMidpoint,
   } from '/path-geometry.js';
+  import { PointSelection } from '/selection.js';
   import { screenAlignedMarkerTransform, ViewBoxCamera } from '/viewport.js';
 
   const $ = (id) => document.getElementById(id);
   const ns = 'http://www.w3.org/2000/svg';
   const backdrops = ['checker', 'white', 'black'];
   let backdrop = 0, version = -1, state = null, editing = false;
-  let shapeName = null, activeTarget = null, selection = null, drag = null;
+  let shapeName = null, activeTarget = null, drag = null;
   let editorSvg = null, editorLayer = null, toastTimer = null;
+  const selection = new PointSelection();
   const camera = new ViewBoxCamera();
   let editQueue = Promise.resolve();
   let gestureScale = 1;
@@ -31,7 +33,7 @@
   $('shape-select').onchange = (event) => {
     shapeName = event.target.value;
     activeTarget = state.targets.find((target) => target.shape === shapeName)?.name ?? null;
-    selection = null; renderEditor();
+    selection.clear(); renderEditor();
   };
   $('deletebtn').onclick = deleteSelected;
   $('symmetricbtn').onclick = equalizeSelected;
@@ -220,14 +222,14 @@
 
   function editTarget(target) {
     hideShapeTip();
-    shapeName = target.shape; activeTarget = target.name; selection = null;
+    shapeName = target.shape; activeTarget = target.name; selection.clear();
     updateShapeSelect(); enterEditor();
   }
 
   function enterEditor() {
     if (!state?.editor.length) return;
     activeTarget ??= state.targets.find((target) => target.shape === shapeName)?.name ?? null;
-    editing = true; selection = null;
+    editing = true; selection.clear();
     $('inspector').hidden = false;
     $('editbtn').textContent = 'Done';
     $('editbtn').classList.remove('primary');
@@ -250,13 +252,13 @@
     return state?.targets.find((target) => target.name === activeTarget && target.shape === shapeName);
   }
   function selectedAnchorIndex(shape) {
-    if (!selection) return null;
-    const name = selection.kind === 'anchor' ? selection.name : selection.anchor;
+    const name = selection.control?.anchor ?? selection.primaryAnchor;
+    if (!name) return null;
     const index = shape.points.findIndex((point) => point.name === name);
     return index >= 0 ? index : null;
   }
   function isSelectedControl(point, handle) {
-    return selection?.kind === 'control' && selection.point === point.name && selection.handle === handle;
+    return selection.control?.point === point.name && selection.control.handle === handle;
   }
   function svgElement(tag, attrs = {}) {
     const element = document.createElementNS(ns, tag);
@@ -337,6 +339,7 @@
   }
 
   function appendTangentGuide(svg, shape) {
+    if (selection.anchorCount > 1) return;
     const anchorIndex = selectedAnchorIndex(shape);
     if (anchorIndex === null) return;
 
@@ -438,9 +441,7 @@
     shape.points.forEach((point, index) => {
       appendBezierControls(svg, shape, point, index, radius);
 
-      const selected = selection?.kind === 'anchor' && point.name === selection.name
-        ? ' selected'
-        : '';
+      const selected = selection.hasAnchor(point.name) ? ' selected' : '';
       const anchor = svgElement('circle', {
         class: `anchor${selected}`,
         'data-anchor': index,
@@ -449,11 +450,12 @@
         r: radius,
         tabindex: '0',
         role: 'button',
+        'aria-pressed': selection.hasAnchor(point.name) ? 'true' : 'false',
         'aria-label': `Point ${point.name}`,
       });
       anchor.onpointerdown = (event) => startDrag(event, 'anchor', index, null);
       anchor.onkeydown = (event) =>
-        activateWithKeyboard(event, () => selectAnchor(index));
+        activateWithKeyboard(event, () => selectAnchor(index, event.shiftKey));
       svg.append(anchor);
     });
   }
@@ -532,6 +534,7 @@
   function renderEditor() {
     const shape = currentShape();
     if (!shape) return;
+    selection.reconcile(shape.points.map((point) => point.name));
 
     const metrics = editorMetrics(shape);
     const controlsSvg = createEditorOverlay(shape, metrics);
@@ -546,15 +549,16 @@
     updatePointPanel();
   }
 
-  function selectAnchor(index) {
+  function selectAnchor(index, toggle = false) {
     const shape = currentShape(), point = pointAt(shape, index);
-    selection = { kind: 'anchor', name: point.name };
+    if (toggle) selection.toggleAnchor(point.name);
+    else selection.replaceAnchor(point.name);
     renderEditor();
   }
 
   function selectControl(index, handle) {
     const shape = currentShape(), point = pointAt(shape, index), anchor = pointAt(shape, attachedAnchorIndex(shape, index, handle));
-    selection = { kind: 'control', point: point.name, handle, anchor: anchor.name };
+    selection.selectControl(point.name, handle, anchor.name);
     renderEditor();
   }
 
@@ -568,13 +572,21 @@
       return;
     }
     const anchor = pointAt(shape, anchorIndex);
-    if (selection.kind === 'control') {
-      const segment = shape.points.find((point) => point.name === selection.point);
-      const value = segment?.[selection.handle];
-      $('point-name').textContent = `${anchor.name} · ${selection.handle === 'c1' ? 'outgoing' : 'incoming'} control`;
+    const control = selection.control;
+    if (control) {
+      const segment = shape.points.find((point) => point.name === control.point);
+      const value = segment?.[control.handle];
+      $('point-name').textContent = `${anchor.name} · ${control.handle === 'c1' ? 'outgoing' : 'incoming'} control`;
       $('point-coords').textContent = value ? `${formatNumber(value[0])}, ${formatNumber(value[1])}` : 'Control no longer exists';
       $('deletebtn').textContent = 'Retract control';
       $('deletebtn').disabled = !value;
+    } else if (selection.anchorCount > 1) {
+      $('point-name').textContent = `${selection.anchorCount} points selected`;
+      $('point-coords').textContent = 'Drag or use arrow keys to move them together';
+      $('deletebtn').textContent = 'Delete point';
+      $('deletebtn').disabled = true;
+      $('symmetricbtn').disabled = true;
+      return;
     } else {
       $('point-name').textContent = anchor.name;
       $('point-coords').textContent = `${formatNumber(anchor.x)}, ${formatNumber(anchor.y)} · ${anchor.mode}`;
@@ -596,11 +608,33 @@
     event.currentTarget.setPointerCapture?.(event.pointerId);
     const shape = currentShape(), point = pointAt(shape, index);
     if (kind === 'anchor') {
-      selection = { kind: 'anchor', name: point.name };
-      drag = { kind, index, moved: false };
+      if (event.shiftKey && selection.hasAnchor(point.name)) {
+        selection.toggleAnchor(point.name);
+        updateSelectionClasses(shape);
+        updatePointPanel();
+        return;
+      }
+      if (event.shiftKey) selection.toggleAnchor(point.name);
+      else if (!selection.hasAnchor(point.name)) selection.replaceAnchor(point.name);
+      else selection.focusAnchor(point.name);
+      const anchorNames = selection.anchorNames();
+      drag = {
+        kind,
+        index,
+        anchorNames,
+        anchorIndices: anchorNames.map((name) => shape.points.findIndex((candidate) => candidate.name === name)),
+        startPoints: shape.points.map((candidate) => ({
+          x: candidate.x,
+          y: candidate.y,
+          c1: candidate.c1 ? [...candidate.c1] : candidate.c1,
+          c2: candidate.c2 ? [...candidate.c2] : candidate.c2,
+        })),
+        delta: { x: 0, y: 0 },
+        moved: false,
+      };
     } else {
       const anchorIndex = attachedAnchorIndex(shape, index, handle), anchor = pointAt(shape, anchorIndex);
-      selection = { kind: 'control', point: point.name, handle, anchor: anchor.name };
+      selection.selectControl(point.name, handle, anchor.name);
       const opposite = event.altKey ? null : oppositeHandle(shape, index, handle);
       const oppositePoint = opposite ? pointAt(shape, opposite.index)[opposite.handle] : null;
       drag = {
@@ -608,13 +642,26 @@
         oppositeLength: oppositePoint ? Math.hypot(oppositePoint[0] - anchor.x, oppositePoint[1] - anchor.y) : 0,
       };
     }
-    editorLayer.querySelectorAll('.anchor').forEach((anchor) => anchor.classList.toggle('selected', selection.kind === 'anchor' && pointAt(shape, Number(anchor.dataset.anchor)).name === selection.name));
-    editorLayer.querySelectorAll('.control').forEach((control) => {
-      const [controlIndex, controlHandle] = control.dataset.control.split('-');
-      control.classList.toggle('selected', selection.kind === 'control' && Number(controlIndex) === index && controlHandle === handle);
-    });
+    updateSelectionClasses(shape);
     updateTangentGuide();
     updatePointPanel();
+  }
+
+  function updateSelectionClasses(shape) {
+    editorLayer.querySelectorAll('.anchor').forEach((anchor) => {
+      const point = pointAt(shape, Number(anchor.dataset.anchor));
+      const selected = selection.hasAnchor(point.name);
+      anchor.classList.toggle('selected', selected);
+      anchor.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    });
+    editorLayer.querySelectorAll('.control').forEach((control) => {
+      const [controlIndex, controlHandle] = control.dataset.control.split('-');
+      control.classList.toggle(
+        'selected',
+        selection.control?.point === pointAt(shape, Number(controlIndex)).name
+          && selection.control.handle === controlHandle,
+      );
+    });
   }
 
   function constrain45(anchor, target) {
@@ -624,18 +671,43 @@
     return { x: anchor.x + Math.cos(angle) * length, y: anchor.y + Math.sin(angle) * length };
   }
 
-  function snapAnchor(shape, index, target) {
+  function snapAnchor(shape, index, target, excluded = new Set()) {
     const inverse = editorLayer.getScreenCTM().inverse();
     const threshold = Math.max(Math.hypot(inverse.a, inverse.b), Math.hypot(inverse.c, inverse.d)) * 7;
     let x = target.x, y = target.y, guideX = null, guideY = null, bestX = threshold, bestY = threshold;
     shape.points.forEach((candidate, candidateIndex) => {
-      if (candidateIndex === index) return;
+      if (candidateIndex === index || excluded.has(candidateIndex)) return;
       const dx = Math.abs(candidate.x - target.x), dy = Math.abs(candidate.y - target.y);
       if (dx < bestX) { bestX = dx; x = candidate.x; guideX = candidate.x; }
       if (dy < bestY) { bestY = dy; y = candidate.y; guideY = candidate.y; }
     });
     showSnapGuides(guideX, guideY);
     return { x, y };
+  }
+
+  function previewAnchorDrag(shape, pending, delta) {
+    shape.points.forEach((point, index) => {
+      const start = pending.startPoints[index];
+      point.x = start.x;
+      point.y = start.y;
+      point.c1 = start.c1 ? [...start.c1] : start.c1;
+      point.c2 = start.c2 ? [...start.c2] : start.c2;
+    });
+    pending.anchorIndices.forEach((index) => {
+      const point = pointAt(shape, index), start = pending.startPoints[index];
+      point.x = start.x + delta.x;
+      point.y = start.y + delta.y;
+      if (point.controlsEditable && start.c2) {
+        point.c2 = [start.c2[0] + delta.x, start.c2[1] + delta.y];
+      }
+      const next = nextIndex(shape, index);
+      if (next !== null) {
+        const following = pointAt(shape, next), followingStart = pending.startPoints[next];
+        if (following.controlsEditable && followingStart.c1) {
+          following.c1 = [followingStart.c1[0] + delta.x, followingStart.c1[1] + delta.y];
+        }
+      }
+    });
   }
 
   function showSnapGuides(x, y) {
@@ -649,18 +721,14 @@
 
   window.addEventListener('pointermove', (event) => {
     if (!drag || !editing || !editorLayer) return;
-    const shape = currentShape(), point = pointAt(shape, drag.index), next = nextIndex(shape, drag.index);
+    const shape = currentShape(), point = pointAt(shape, drag.index);
     let target = screenPoint(event);
     drag.moved = true;
     if (drag.kind === 'anchor') {
-      target = snapAnchor(shape, drag.index, target);
-      const dx = target.x - point.x, dy = target.y - point.y;
-      point.x = target.x; point.y = target.y;
-      if (point.controlsEditable && point.c2) { point.c2[0] += dx; point.c2[1] += dy; }
-      if (next !== null) {
-        const following = pointAt(shape, next);
-        if (following.controlsEditable && following.c1) { following.c1[0] += dx; following.c1[1] += dy; }
-      }
+      target = snapAnchor(shape, drag.index, target, new Set(drag.anchorIndices));
+      const start = drag.startPoints[drag.index];
+      drag.delta = { x: target.x - start.x, y: target.y - start.y };
+      previewAnchorDrag(shape, drag, drag.delta);
     } else {
       const anchor = pointAt(shape, drag.anchorIndex);
       if (event.shiftKey) target = constrain45(anchor, target);
@@ -682,7 +750,15 @@
     drag = null;
     showSnapGuides(null, null);
     if (!pending.moved) return;
-    if (pending.kind === 'anchor') await edit({ action: 'move', shape: shape.name, point: point.name, x: point.x, y: point.y });
+    if (pending.kind === 'anchor') {
+      await edit({
+        action: 'move-anchors',
+        shape: shape.name,
+        points: pending.anchorNames.join(','),
+        dx: pending.delta.x,
+        dy: pending.delta.y,
+      });
+    }
     else {
       const fields = { action: 'control', shape: shape.name, point: point.name, handle: pending.handle, x: point[pending.handle][0], y: point[pending.handle][1] };
       if (pending.opposite) {
@@ -763,6 +839,10 @@
 
   function updateTangentGuide() {
     if (!editorLayer) return;
+    if (selection.anchorCount > 1) {
+      editorLayer.querySelector('[data-role="tangent-guide"]')?.remove();
+      return;
+    }
     const shape = currentShape(), anchorIndex = selectedAnchorIndex(shape);
     let guide = editorLayer.querySelector('[data-role="tangent-guide"]');
     const pair = anchorIndex === null ? [] : handlesAtAnchor(shape, anchorIndex).filter((item) => !isRetracted(shape, item.index, item.handle));
@@ -778,13 +858,14 @@
   }
   async function deleteSelected() {
     const shape = currentShape();
-    if (!selection || $('deletebtn').disabled) return;
-    const pending = selection;
-    selection = null;
-    if (pending.kind === 'control') {
-      await edit({ action: 'retract-control', shape: shape.name, point: pending.point, handle: pending.handle });
+    if ($('deletebtn').disabled) return;
+    const control = selection.control;
+    const point = selection.primaryAnchor;
+    selection.clear();
+    if (control) {
+      await edit({ action: 'retract-control', shape: shape.name, point: control.point, handle: control.handle });
     } else {
-      await edit({ action: 'delete', shape: shape.name, point: pending.name });
+      await edit({ action: 'delete', shape: shape.name, point });
     }
   }
 
@@ -792,7 +873,7 @@
     const shape = currentShape(), anchorIndex = shape ? selectedAnchorIndex(shape) : null;
     if (anchorIndex === null || $('symmetricbtn').disabled) return;
     const anchor = pointAt(shape, anchorIndex);
-    selection = { kind: 'anchor', name: anchor.name };
+    selection.replaceAnchor(anchor.name);
     await edit({ action: 'symmetric', shape: shape.name, point: anchor.name });
   }
 
@@ -827,7 +908,14 @@
       return;
     }
     if (!editing) return;
-    if (!command && selection?.kind === 'anchor' && event.key.startsWith('Arrow')) {
+    if (command && event.key.toLowerCase() === 'a') {
+      event.preventDefault();
+      const shape = currentShape();
+      selection.selectAll(shape.points.map((point) => point.name));
+      renderEditor();
+      return;
+    }
+    if (!command && selection.anchorCount > 0 && event.key.startsWith('Arrow')) {
       const directions = {
         ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
       };
@@ -836,7 +924,7 @@
         event.preventDefault();
         const distance = event.altKey ? .1 : (event.shiftKey ? 10 : 1);
         edit({
-          action: 'nudge', shape: currentShape().name, point: selection.name,
+          action: 'move-anchors', shape: currentShape().name, points: selection.anchorNames().join(','),
           dx: direction[0] * distance, dy: direction[1] * distance,
         });
         return;
@@ -844,7 +932,14 @@
     }
     if ((event.key === 'Delete' || event.key === 'Backspace') && !$('deletebtn').disabled) { event.preventDefault(); deleteSelected(); }
     if (event.shiftKey && !command && event.key.toLowerCase() === 'c' && !$('symmetricbtn').disabled) { event.preventDefault(); equalizeSelected(); }
-    if (event.key === 'Escape') leaveEditor();
+    if (event.key === 'Escape') {
+      if (selection.anchorCount || selection.control) {
+        selection.clear();
+        renderEditor();
+      } else {
+        leaveEditor();
+      }
+    }
   });
 
   const es = new EventSource('/events');
