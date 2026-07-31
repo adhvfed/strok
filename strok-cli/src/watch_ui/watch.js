@@ -264,105 +264,285 @@
     return element;
   }
 
-  function renderEditor() {
-    const shape = currentShape();
-    if (!shape) return;
-    const svg = svgElement('svg', { role: 'img', 'aria-label': `Editing ${shape.name}` });
-    editorSvg = svg; editorLayer = svg;
-    const path = svgElement('path', { class: 'edit-path', d: buildPath(shape) });
-    path.dataset.role = 'path'; svg.append(path);
-    const allCoordinates = shape.points.flatMap((point) => [[point.x, point.y], point.c1, point.c2].filter(Boolean));
-    let minX = Math.min(...allCoordinates.map((point) => point[0])), maxX = Math.max(...allCoordinates.map((point) => point[0]));
-    let minY = Math.min(...allCoordinates.map((point) => point[1])), maxY = Math.max(...allCoordinates.map((point) => point[1]));
-    const span = Math.max(maxX - minX, maxY - minY, 1), pad = Math.max(span * .14, 8), radius = Math.max(span / 105, .8);
-    const fitBox = { x: minX - pad, y: minY - pad, width: Math.max(maxX - minX, 1) + 2 * pad, height: Math.max(maxY - minY, 1) + 2 * pad };
-    svg.setAttribute('viewBox', `${fitBox.x} ${fitBox.y} ${fitBox.width} ${fitBox.height}`);
+  function editorMetrics(shape) {
+    const coordinates = shape.points.flatMap((point) =>
+      [[point.x, point.y], point.c1, point.c2].filter(Boolean),
+    );
+    const xs = coordinates.map(([x]) => x);
+    const ys = coordinates.map(([, y]) => y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const span = Math.max(maxX - minX, maxY - minY, 1);
+    const padding = Math.max(span * 0.14, 8);
+
+    return {
+      radius: Math.max(span / 105, 0.8),
+      fitBox: {
+        x: minX - padding,
+        y: minY - padding,
+        width: Math.max(maxX - minX, 1) + 2 * padding,
+        height: Math.max(maxY - minY, 1) + 2 * padding,
+      },
+    };
+  }
+
+  function appendSnapGuides(svg) {
+    const layer = svgElement('g', {
+      'data-role': 'guides',
+      'aria-hidden': 'true',
+    });
+    layer.append(
+      svgElement('line', {
+        class: 'snap-guide',
+        'data-guide': 'x',
+        visibility: 'hidden',
+      }),
+      svgElement('line', {
+        class: 'snap-guide',
+        'data-guide': 'y',
+        visibility: 'hidden',
+      }),
+    );
+    svg.append(layer);
+  }
+
+  function appendControlLines(svg, shape) {
+    shape.points.forEach((point, index) => {
+      if (!point.c1 || !point.c2) return;
+
+      const previous = pointAt(shape, previousIndex(shape, index));
+      if (!isRetracted(shape, index, 'c1')) {
+        svg.append(svgElement('line', {
+          class: 'control-line',
+          'data-line': `${index}-c1`,
+          x1: previous.x,
+          y1: previous.y,
+          x2: point.c1[0],
+          y2: point.c1[1],
+        }));
+      }
+      if (!isRetracted(shape, index, 'c2')) {
+        svg.append(svgElement('line', {
+          class: 'control-line',
+          'data-line': `${index}-c2`,
+          x1: point.x,
+          y1: point.y,
+          x2: point.c2[0],
+          y2: point.c2[1],
+        }));
+      }
+    });
+  }
+
+  function appendTangentGuide(svg, shape) {
+    const anchorIndex = selectedAnchorIndex(shape);
+    if (anchorIndex === null) return;
+
+    const handles = handlesAtAnchor(shape, anchorIndex)
+      .filter(({ index, handle }) => !isRetracted(shape, index, handle));
+    if (handles.length !== 2) return;
+
+    const [firstHandle, secondHandle] = handles;
+    const first = pointAt(shape, firstHandle.index)[firstHandle.handle];
+    const second = pointAt(shape, secondHandle.index)[secondHandle.handle];
+    svg.append(svgElement('line', {
+      class: 'tangent-guide',
+      'data-role': 'tangent-guide',
+      x1: first[0],
+      y1: first[1],
+      x2: second[0],
+      y2: second[1],
+    }));
+  }
+
+  function activateWithKeyboard(event, action) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    action();
+  }
+
+  function appendInsertionControls(svg, shape, radius) {
+    shape.points.forEach((point, index) => {
+      const midpoint = segmentMidpoint(shape, index);
+      if (!midpoint) return;
+
+      const [x, y] = midpoint;
+      const group = svgElement('g', {
+        tabindex: '0',
+        role: 'button',
+        'aria-label': `Add point after ${point.name}`,
+        'data-insert': index,
+      });
+      group.append(
+        svgElement('circle', {
+          class: 'insert',
+          cx: x,
+          cy: y,
+          r: radius * 0.82,
+        }),
+        svgElement('line', {
+          class: 'insert-mark',
+          x1: x - radius * 0.38,
+          y1: y,
+          x2: x + radius * 0.38,
+          y2: y,
+        }),
+        svgElement('line', {
+          class: 'insert-mark',
+          x1: x,
+          y1: y - radius * 0.38,
+          x2: x,
+          y2: y + radius * 0.38,
+        }),
+      );
+      group.onclick = () => addAfter(index);
+      group.onkeydown = (event) => activateWithKeyboard(event, () => addAfter(index));
+      svg.append(group);
+    });
+  }
+
+  function appendBezierControls(svg, shape, point, index, radius) {
+    if (!point.c1 || !point.c2) return;
+
+    ['c1', 'c2'].forEach((handle) => {
+      if (isRetracted(shape, index, handle)) return;
+
+      const selected = isSelectedControl(point, handle) ? ' selected' : '';
+      const readonly = point.controlsEditable ? '' : ' readonly';
+      const [x, y] = point[handle];
+      const anchor = pointAt(shape, attachedAnchorIndex(shape, index, handle));
+      const control = svgElement('rect', {
+        class: `control${readonly}${selected}`,
+        'data-control': `${index}-${handle}`,
+        x: x - radius * 0.7,
+        y: y - radius * 0.7,
+        width: radius * 1.4,
+        height: radius * 1.4,
+        rx: radius * 0.18,
+        tabindex: point.controlsEditable ? '0' : '-1',
+        role: 'button',
+        'aria-label': `${handle === 'c1' ? 'Outgoing' : 'Incoming'} control for ${anchor.name}`,
+      });
+      if (point.controlsEditable) {
+        control.onpointerdown = (event) => startDrag(event, 'control', index, handle);
+        control.onkeydown = (event) =>
+          activateWithKeyboard(event, () => selectControl(index, handle));
+      }
+      svg.append(control);
+    });
+  }
+
+  function appendAnchorsAndControls(svg, shape, radius) {
+    shape.points.forEach((point, index) => {
+      appendBezierControls(svg, shape, point, index, radius);
+
+      const selected = selection?.kind === 'anchor' && point.name === selection.name
+        ? ' selected'
+        : '';
+      const anchor = svgElement('circle', {
+        class: `anchor${selected}`,
+        'data-anchor': index,
+        cx: point.x,
+        cy: point.y,
+        r: radius,
+        tabindex: '0',
+        role: 'button',
+        'aria-label': `Point ${point.name}`,
+      });
+      anchor.onpointerdown = (event) => startDrag(event, 'anchor', index, null);
+      anchor.onkeydown = (event) =>
+        activateWithKeyboard(event, () => selectAnchor(index));
+      svg.append(anchor);
+    });
+  }
+
+  function createEditorOverlay(shape, { fitBox, radius }) {
+    const svg = svgElement('svg', {
+      role: 'img',
+      'aria-label': `Editing ${shape.name}`,
+      viewBox: `${fitBox.x} ${fitBox.y} ${fitBox.width} ${fitBox.height}`,
+    });
     svg.dataset.baseRadius = radius;
     svg.dataset.guideBox = JSON.stringify(fitBox);
 
-    const guideLayer = svgElement('g', { 'data-role': 'guides', 'aria-hidden': 'true' });
-    guideLayer.append(svgElement('line', { class: 'snap-guide', 'data-guide': 'x', visibility: 'hidden' }));
-    guideLayer.append(svgElement('line', { class: 'snap-guide', 'data-guide': 'y', visibility: 'hidden' }));
-    svg.append(guideLayer);
+    const path = svgElement('path', {
+      class: 'edit-path',
+      d: buildPath(shape),
+      'data-role': 'path',
+    });
+    svg.append(path);
+    appendSnapGuides(svg);
+    appendControlLines(svg, shape);
+    appendTangentGuide(svg, shape);
+    appendInsertionControls(svg, shape, radius);
+    appendAnchorsAndControls(svg, shape, radius);
+    return svg;
+  }
 
-    shape.points.forEach((point, index) => {
-      if (point.c1 && point.c2) {
-        const previous = pointAt(shape, previousIndex(shape, index));
-        if (!isRetracted(shape, index, 'c1')) svg.append(svgElement('line', { class: 'control-line', 'data-line': `${index}-c1`, x1: previous.x, y1: previous.y, x2: point.c1[0], y2: point.c1[1] }));
-        if (!isRetracted(shape, index, 'c2')) svg.append(svgElement('line', { class: 'control-line', 'data-line': `${index}-c2`, x1: point.x, y1: point.y, x2: point.c2[0], y2: point.c2[1] }));
-      }
-    });
-    const selectedAnchor = selectedAnchorIndex(shape);
-    if (selectedAnchor !== null) {
-      const pair = handlesAtAnchor(shape, selectedAnchor).filter((item) => !isRetracted(shape, item.index, item.handle));
-      if (pair.length === 2) {
-        const first = pointAt(shape, pair[0].index)[pair[0].handle], second = pointAt(shape, pair[1].index)[pair[1].handle];
-        svg.append(svgElement('line', { class: 'tangent-guide', 'data-role': 'tangent-guide', x1: first[0], y1: first[1], x2: second[0], y2: second[1] }));
-      }
+  function documentContextSvg(shape) {
+    if (!state.svg) return null;
+
+    const holder = document.createElement('div');
+    holder.innerHTML = state.svg;
+    const svg = holder.querySelector('svg');
+    if (!svg) return null;
+
+    const width = svg.getAttribute('width');
+    const height = svg.getAttribute('height');
+    if (!svg.getAttribute('viewBox') && width && height) {
+      svg.setAttribute('viewBox', `0 0 ${parseFloat(width)} ${parseFloat(height)}`);
     }
-    shape.points.forEach((point, index) => {
-      const mid = segmentMidpoint(shape, index);
-      if (!mid) return;
-      const group = svgElement('g', { tabindex: '0', role: 'button', 'aria-label': `Add point after ${point.name}`, 'data-insert': index });
-      group.append(svgElement('circle', { class: 'insert', cx: mid[0], cy: mid[1], r: radius * .82 }));
-      group.append(svgElement('line', { class: 'insert-mark', x1: mid[0] - radius * .38, y1: mid[1], x2: mid[0] + radius * .38, y2: mid[1] }));
-      group.append(svgElement('line', { class: 'insert-mark', x1: mid[0], y1: mid[1] - radius * .38, x2: mid[0], y2: mid[1] + radius * .38 }));
-      group.onclick = () => addAfter(index);
-      group.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); addAfter(index); } };
-      svg.append(group);
-    });
-    shape.points.forEach((point, index) => {
-      if (point.c1 && point.c2) {
-        ['c1', 'c2'].forEach((handle) => {
-          if (isRetracted(shape, index, handle)) return;
-          const selected = isSelectedControl(point, handle) ? ' selected' : '';
-          const control = svgElement('rect', { class: `control${point.controlsEditable ? '' : ' readonly'}${selected}`, 'data-control': `${index}-${handle}`, x: point[handle][0] - radius * .7, y: point[handle][1] - radius * .7, width: radius * 1.4, height: radius * 1.4, rx: radius * .18, tabindex: point.controlsEditable ? '0' : '-1', role: 'button', 'aria-label': `${handle === 'c1' ? 'Outgoing' : 'Incoming'} control for ${pointAt(shape, attachedAnchorIndex(shape, index, handle)).name}` });
-          if (point.controlsEditable) {
-            control.onpointerdown = (event) => startDrag(event, 'control', index, handle);
-            control.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectControl(index, handle); } };
-          }
-          svg.append(control);
-        });
-      }
-      const anchor = svgElement('circle', { class: `anchor${selection?.kind === 'anchor' && point.name === selection.name ? ' selected' : ''}`, 'data-anchor': index, cx: point.x, cy: point.y, r: radius, tabindex: '0', role: 'button', 'aria-label': `Point ${point.name}` });
-      anchor.onpointerdown = (event) => startDrag(event, 'anchor', index, null);
-      anchor.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectAnchor(index); } };
-      svg.append(anchor);
-    });
-    const target = currentTarget();
-    if (target && state.svg) {
-      const holder = document.createElement('div');
-      holder.innerHTML = state.svg;
-      const contextSvg = holder.querySelector('svg');
-      if (contextSvg) {
-        const width = contextSvg.getAttribute('width'), height = contextSvg.getAttribute('height');
-        if (!contextSvg.getAttribute('viewBox') && width && height) {
-          contextSvg.setAttribute('viewBox', `0 0 ${parseFloat(width)} ${parseFloat(height)}`);
-        }
-        contextSvg.removeAttribute('width'); contextSvg.removeAttribute('height');
-        contextSvg.setAttribute('aria-label', `Editing ${shape.name} in document context`);
-        const overlay = svgElement('g', {
-          transform: matrixValue(target.transform), 'data-role': 'editor-overlay',
-          'aria-label': `Geometry controls for ${shape.name}`,
-        });
-        overlay.dataset.baseRadius = radius;
-        overlay.dataset.guideBox = JSON.stringify(fitBox);
-        while (svg.firstChild) overlay.append(svg.firstChild);
-        contextSvg.append(overlay);
-        editorSvg = contextSvg; editorLayer = overlay;
-        $('stage').replaceChildren(contextSvg);
-        const box = contextSvg.viewBox.baseVal;
-        installViewport(contextSvg, `edit:${target.name}`, box);
-      } else {
-        $('stage').replaceChildren(svg);
-        installViewport(svg, `edit:${shape.name}`, fitBox);
-      }
-    } else {
-      $('stage').replaceChildren(svg);
-      installViewport(svg, `edit:${shape.name}`, fitBox);
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    svg.setAttribute('aria-label', `Editing ${shape.name} in document context`);
+    return svg;
+  }
+
+  function mountEditorSvg(shape, target, controlsSvg, { fitBox, radius }) {
+    const contextSvg = target ? documentContextSvg(shape) : null;
+    if (!contextSvg) {
+      return {
+        svg: controlsSvg,
+        layer: controlsSvg,
+        viewportId: `edit:${shape.name}`,
+        fitBox,
+      };
     }
+
+    const overlay = svgElement('g', {
+      transform: matrixValue(target.transform),
+      'data-role': 'editor-overlay',
+      'aria-label': `Geometry controls for ${shape.name}`,
+    });
+    overlay.dataset.baseRadius = radius;
+    overlay.dataset.guideBox = JSON.stringify(fitBox);
+    while (controlsSvg.firstChild) overlay.append(controlsSvg.firstChild);
+    contextSvg.append(overlay);
+
+    return {
+      svg: contextSvg,
+      layer: overlay,
+      viewportId: `edit:${target.name}`,
+      fitBox: contextSvg.viewBox.baseVal,
+    };
+  }
+
+  function renderEditor() {
+    const shape = currentShape();
+    if (!shape) return;
+
+    const metrics = editorMetrics(shape);
+    const controlsSvg = createEditorOverlay(shape, metrics);
+    const mounted = mountEditorSvg(shape, currentTarget(), controlsSvg, metrics);
+    editorSvg = mounted.svg;
+    editorLayer = mounted.layer;
+
+    $('stage').replaceChildren(mounted.svg);
+    installViewport(mounted.svg, mounted.viewportId, mounted.fitBox);
     updateOverlayScale();
-    $('size').textContent = shape.points.length + (shape.points.length === 1 ? ' point' : ' points');
+    $('size').textContent = `${shape.points.length} ${shape.points.length === 1 ? 'point' : 'points'}`;
     updatePointPanel();
   }
 
