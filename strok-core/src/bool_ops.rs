@@ -69,10 +69,11 @@ type Contour = Vec<Pt>;
 /// i_overlay shapes: a list of `[outer, hole, hole, …]` groups.
 type Shapes = Vec<Vec<Contour>>;
 
-/// Flattening tolerance in document units. 0.05 keeps a 1000-unit curve within
-/// well under a render pixel at typical export scales; the goldens assert the
-/// area identities to a far looser ε.
-const FLATTEN_TOL: f64 = 0.05;
+/// Flattening tolerance in document units. Boolean results are emitted as
+/// polygons, so this must also hold up when a small icon is enlarged for visual
+/// review. At 0.01, a 45-unit asset shown at 1200 px stays below roughly a third
+/// of a display pixel while keeping compound paths reasonably compact.
+const FLATTEN_TOL: f64 = 0.01;
 
 /// Apply `op` over `operands` (already flattened to contour-sets, with each
 /// operand interpreted under `fill_rule`). The first operand is the subject;
