@@ -60,11 +60,16 @@ place head shape=head at=0,0 size=200x200
 Editing by hand? `strok watch face.strok` opens a live browser preview that
 re-renders on every save. Its shape editor lets you drag named points and
 Bézier controls, split segments, and delete points or retract individual
-controls. Handles stay linked by default, alignment guides help place anchors,
+controls. Hovering the composed preview identifies editable shapes; clicking
+one opens its points over the full document, preserving visual context even
+for live-boolean operands. Handles stay linked by default, alignment guides help place anchors,
 and Shift+C creates an equal, mirrored handle pair. Every gesture is written
 back to the plain-text `.strok` source and can be undone with Cmd/Ctrl+Z while
-the watcher is running. Parse errors show inline while the last good render
-stays visible.
+the watcher is running. Arrow keys nudge a selected anchor by one unit, with
+Shift for ten units and Alt/Option for a tenth. The canvas supports cursor-anchored pinch or
+Cmd/Ctrl-scroll zoom, scroll panning, and keyboard or toolbar zoom controls;
+viewport changes never touch the source or edit history. Parse errors show
+inline while the last good render stays visible.
 
 Run `strok --help` for the complete workflow and DSL guide. See
 [DSL_SPEC.md](DSL_SPEC.md) for the language reference,

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>strøk</title>
+<link rel="stylesheet" href="/watch.css">
+</head>
+<body>
+<header>
+  <span class="dot" id="dot" aria-hidden="true"></span>
+  <span class="name" id="name">…</span>
+  <span class="meta" id="size"></span>
+  <span class="spacer"></span>
+  <span class="meta" id="save-status" role="status"></span>
+  <span class="meta" id="rev"></span>
+  <span class="zoom-controls" role="group" aria-label="Canvas zoom">
+    <button id="zoomout" title="Zoom out (−)" aria-label="Zoom out" disabled>−</button>
+    <button id="zoomfit" title="Zoom to fit (0)" disabled>100%</button>
+    <button id="zoomin" title="Zoom in (+)" aria-label="Zoom in" disabled>+</button>
+  </span>
+  <button id="undobtn" title="Undo shape edit (Ctrl/⌘Z)" disabled>Undo</button>
+  <button id="redobtn" title="Redo shape edit (Ctrl/⌘ Shift+Z)" disabled>Redo</button>
+  <button id="editbtn" class="primary" disabled>Edit shape</button>
+  <button id="bgbtn" title="Cycle checkerboard, white, and black backdrops">Backdrop</button>
+</header>
+<pre id="errorbar" hidden></pre>
+<div id="workspace">
+  <aside id="inspector" hidden>
+    <h1>Shape editor</h1>
+    <p class="intro">Changes save directly to the watched file.</p>
+    <label for="shape-select">Shape definition</label>
+    <select id="shape-select"></select>
+    <section id="point-panel" aria-live="polite">
+      <span id="point-name">Select a point</span>
+      <span id="point-coords">Drag an anchor to move it</span>
+      <div class="inspector-actions">
+        <button id="symmetricbtn" disabled>Equalize handles <kbd>⇧C</kbd></button>
+      </div>
+      <div class="inspector-actions">
+        <button id="deletebtn" class="danger" disabled>Delete point</button>
+      </div>
+    </section>
+    <p class="hint">Handles stay linked by default. Hold <kbd>Alt</kbd> to move one, <kbd>Shift</kbd> for 45°, or press <kbd>⇧C</kbd> to create an equal pair. Arrow keys nudge anchors; hold <kbd>Shift</kbd> for 10 units or <kbd>Alt</kbd> for 0.1. Alignment guides snap anchors. Scroll to pan; <kbd>Ctrl/⌘</kbd>-scroll zooms. Select exactly what you want to remove, then press <kbd>Delete</kbd>. Use <kbd>Ctrl/⌘Z</kbd> to undo.</p>
+  </aside>
+  <main><div id="stage" class="checker"><span id="empty">waiting for first render…</span></div></main>
+</div>
+<div id="toast" role="alert"></div>
+<div id="shape-tip" role="status" hidden></div>
+<script type="module" src="/watch.js"></script>
+</body>
+</html>

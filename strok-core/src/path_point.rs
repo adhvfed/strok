@@ -79,6 +79,46 @@ pub struct Placement {
     pub flip: Option<Flip>,
 }
 
+/// Affine mapping authored path coordinates into placed coordinates.
+///
+/// This is the same bbox-fit, translation, and flip transform used by
+/// [`path_data_to_svg_d`], exposed so interactive tools can position overlays
+/// without reimplementing renderer semantics.
+pub fn placement_transform_matrix(
+    data: &PathData,
+    placement: &Placement,
+) -> crate::attrs::Transform {
+    let (sx, sy, bx, by, ox, oy, flip_x, flip_y) = placement_transform(data, Some(placement));
+    let (flip_w, flip_h) = if let Some((w, h)) = placement.size {
+        (w, h)
+    } else {
+        let max_x = data
+            .points
+            .iter()
+            .map(|point| point.x)
+            .fold(f64::NEG_INFINITY, f64::max);
+        let max_y = data
+            .points
+            .iter()
+            .map(|point| point.y)
+            .fold(f64::NEG_INFINITY, f64::max);
+        ((max_x - bx) * sx, (max_y - by) * sy)
+    };
+    let a = if flip_x { -sx } else { sx };
+    let d = if flip_y { -sy } else { sy };
+    let e = if flip_x {
+        flip_w + sx * bx + ox
+    } else {
+        ox - sx * bx
+    };
+    let f = if flip_y {
+        flip_h + sy * by + oy
+    } else {
+        oy - sy * by
+    };
+    [a, 0.0, 0.0, d, e, f]
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Flip {
     X,
@@ -1008,6 +1048,23 @@ mod tests {
         };
         let d = path_data_to_svg_d(&data, Some(&p));
         assert_eq!(d, "M277 380 L357 540");
+    }
+
+    #[test]
+    fn placement_matrix_matches_bbox_fit_and_flip() {
+        let data = PathData::new(
+            (100.0, 100.0),
+            vec![sharp("a", 10.0, 20.0), sharp("b", 30.0, 60.0)],
+            false,
+        );
+        let placement = Placement {
+            at: (100.0, 200.0),
+            size: Some((40.0, 80.0)),
+            flip: Some(Flip::X),
+        };
+        let transform = placement_transform_matrix(&data, &placement);
+        assert_eq!(crate::attrs::apply(&transform, 10.0, 20.0), (140.0, 200.0));
+        assert_eq!(crate::attrs::apply(&transform, 30.0, 60.0), (100.0, 280.0));
     }
 
     #[test]

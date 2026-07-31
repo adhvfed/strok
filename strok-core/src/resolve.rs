@@ -3,7 +3,9 @@
 /// Takes a Scene (shapes + placed instances) and produces an SVG document
 /// that can be rendered by strok-render.
 use crate::error::{Result, StrokError};
-use crate::path_point::{path_data_to_svg_d, Flip, PathData, Placement};
+use crate::path_point::{
+    path_data_to_svg_d, placement_transform_matrix, Flip, PathData, Placement,
+};
 use crate::scene::*;
 use crate::shape::*;
 use crate::types::{self, Color, Direction, GradientStop, LinearGradient, RadialGradient};
@@ -360,6 +362,89 @@ pub fn placed_document_d(scene: &Scene, place_name: &str) -> Option<String> {
         resolve_node(scene, node, 1, &mut sink, &mut bboxes, &mut defs);
     }
     placed_document_d_with_bboxes(scene, place_name, &bboxes)
+}
+
+/// Map an editable shape's authored coordinates into the root document space
+/// of one named placement. The transform includes bbox-fit sizing, flips,
+/// place rotation/skew, and enclosing group/frame/component translations.
+///
+/// The watch editor uses this to keep source-space handles aligned with the
+/// rendered composition. Keeping the mapping beside SVG resolution prevents a
+/// second, subtly different placement implementation in the UI.
+pub fn placed_shape_transform(scene: &Scene, place_name: &str) -> Option<crate::attrs::Transform> {
+    let (place, ancestor) =
+        find_place_transform(scene, &scene.nodes, place_name, crate::attrs::IDENTITY)?;
+    let shape = scene.find_shape(&place.shape_ref)?;
+    if shape.is_text() {
+        return None;
+    }
+    let data = shape.resolve((scene.document_size.w, scene.document_size.h));
+    if data.points.is_empty() {
+        return None;
+    }
+    let bboxes = element_bboxes(scene);
+    let at = resolve_position(scene, place, &data, &bboxes);
+    let placement = Placement {
+        at,
+        size: place.size.map(|size| (size.w, size.h)),
+        flip: place.flip.map(convert_flip),
+    };
+    let placed = placement_transform_matrix(&data, &placement);
+    let post = place_post_transform(place, Some(&placement)).unwrap_or(crate::attrs::IDENTITY);
+    Some(crate::attrs::mul(
+        &ancestor,
+        &crate::attrs::mul(&post, &placed),
+    ))
+}
+
+fn find_place_transform<'a>(
+    scene: &'a Scene,
+    nodes: &'a [SceneNode],
+    target: &str,
+    ancestor: crate::attrs::Transform,
+) -> Option<(&'a Place, crate::attrs::Transform)> {
+    for node in nodes {
+        match node {
+            SceneNode::Place(place) if place.name == target => return Some((place, ancestor)),
+            SceneNode::Group(group) => {
+                let nested = crate::attrs::mul(&ancestor, &group_transform(group));
+                if let Some(found) = find_place_transform(scene, &group.children, target, nested) {
+                    return Some(found);
+                }
+            }
+            SceneNode::Boolean(boolean) => {
+                if let Some(found) =
+                    find_place_transform(scene, &boolean.children, target, ancestor)
+                {
+                    return Some(found);
+                }
+            }
+            SceneNode::Frame(frame) => {
+                let nested = frame
+                    .position
+                    .map(|(x, y)| crate::attrs::mul(&ancestor, &crate::attrs::translate(x, y)))
+                    .unwrap_or(ancestor);
+                if let Some(found) = find_place_transform(scene, &frame.children, target, nested) {
+                    return Some(found);
+                }
+            }
+            SceneNode::Instance(instance) => {
+                let nested = instance
+                    .position
+                    .map(|(x, y)| crate::attrs::mul(&ancestor, &crate::attrs::translate(x, y)))
+                    .unwrap_or(ancestor);
+                if let Some(component) = scene.find_component(&instance.component) {
+                    if let Some(found) =
+                        find_place_transform(scene, &component.children, target, nested)
+                    {
+                        return Some(found);
+                    }
+                }
+            }
+            SceneNode::Place(_) | SceneNode::Link(_) => {}
+        }
+    }
+    None
 }
 
 /// Like `placed_document_d` but reuses an already-built bbox map instead of
@@ -3628,5 +3713,19 @@ place part shape=block at=40,45 size=20x10{rotation}
         let bounds = BezPath::from_svg(&turned_d).unwrap().bounding_box();
         assert!((bounds.width() - 10.0).abs() < 1e-6, "{bounds:?}");
         assert!((bounds.height() - 20.0).abs() < 1e-6, "{bounds:?}");
+    }
+
+    #[test]
+    fn placed_shape_transform_includes_bbox_fit_and_parent_group() {
+        let scene = dsl_parse::parse_file(concat!(
+            "documentsize 100x100\n",
+            "shape block template=rectangle\n",
+            "group cluster at=100,50\n",
+            "  place part shape=block at=5,6 size=20x10\n",
+        ))
+        .unwrap();
+        let transform = placed_shape_transform(&scene, "part").unwrap();
+        assert_eq!(crate::attrs::apply(&transform, 0.0, 0.0), (105.0, 56.0));
+        assert_eq!(crate::attrs::apply(&transform, 100.0, 100.0), (125.0, 66.0));
     }
 }

@@ -1203,10 +1203,15 @@ image at its real viewing size. Plan enough visual review for the requested bar.
 
 3. BUILD LARGE TO SMALL
 
-   Write a one-sentence visual brief. Block the frame into foreground, subject,
-   and background. Establish silhouettes and overlap before texture or decoration.
+   Write a one-sentence visual brief that names the canvas, smallest delivery
+   size, backgrounds, and schemes. Choose solid, mixed, angular-outline, or
+   round-outline deliberately. Block the frame into foreground, subject, and
+   background. Establish silhouettes and overlap before texture or decoration.
    Give each visual role a named shape: body, rim, inner rim, handle, cast shadow,
-   highlight. Reuse real geometry; do not force unrelated roles into one path.
+   highlight. Prefer primitives and a few intentional curves to dense tracing.
+   A point's mode controls the segment ARRIVING at that point; at a smooth join,
+   read the incoming handle → anchor → outgoing handle as one relationship.
+   Reuse real geometry; do not force unrelated roles into one path.
    When several parts must read as one outer silhouette, put named placements in
    a live `boolean <name> op=union` block. It recomputes on every render while
    each operand stays available to `inspect` and `render --node`. Reserve the
@@ -1228,6 +1233,8 @@ image at its real viewing size. Plan enough visual review for the requested bar.
    joins, or attachment geometry are difficult to read through paint and shading.
    Change one concern at a time, render again, and use
    `strok diff before.png after.png` when the effect is subtle.
+   Use one source writer at a time. Checkpoint before interactive point edits,
+   then inspect the whole affected shape after each mutation.
 
 5. FINISH WITH A VISUAL, NOT SYNTACTIC, GATE
 

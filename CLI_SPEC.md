@@ -835,17 +835,27 @@ Events with no manual refresh.
 - Parse errors are shown in the page with their caret diagnostics while the
   **last good render stays visible** (dimmed), so the preview never goes blank
   mid-edit.
-- **Edit shape** opens a focused geometry view for any local named shape. Drag
-  anchors or explicit Bézier handles, use the midpoint `+` controls to split a
+- Hovering the preview identifies local editable shapes by shape and placement
+  name. Clicking a target enters editing with its authored geometry overlaid in
+  the full composition, including shapes used as live-boolean operands.
+- **Edit shape** opens geometry editing for any local named shape. Drag anchors
+  or explicit Bézier handles, use the midpoint `+` controls to split a
   segment, and remove the selected anchor or retract the selected control with
   the button or Delete/Backspace. Alignment guides snap anchors to peer x/y
   coordinates. Bézier handles are linked across their anchor by default:
   Alt-drag moves only one handle, Shift-drag constrains its direction to 45°,
   and Shift+C creates or resets the selected anchor's pair to equal, opposite
-  handles. Undo/redo buttons and Cmd/Ctrl+Z / Cmd/Ctrl+Shift+Z restore browser
+  handles. Arrow keys nudge a selected anchor by one unit; Shift changes the
+  step to 10 and Alt/Option changes it to 0.1. Undo/redo buttons and
+  Cmd/Ctrl+Z / Cmd/Ctrl+Shift+Z restore browser
   edits (up to 100 steps); editing the file externally clears incompatible
   history. Edits are immediately written back to the watched `.strok` file;
   imported module shapes remain read-only and are not offered in the editor.
+- The preview and shape editor share view-only navigation. Scroll pans;
+  Cmd/Ctrl-scroll or trackpad pinch zooms around the pointer; `+` and `-` zoom
+  around the canvas center; and `0` or the percentage button restores fit.
+  Zoom ranges from 10% to 6400%, keeps editor handles a constant screen size,
+  and never writes the document or adds an undo step.
 - The preview backdrop cycles checkerboard → white → black to judge
   transparency and both polarities.
 - `--port` defaults to an ephemeral free port; the chosen URL is printed on

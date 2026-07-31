@@ -1669,6 +1669,28 @@ fn watch_serves_preview_and_rerenders_on_change() {
     assert!(index.contains("Equalize handles"), "{index}");
     assert!(index.contains("Handles stay linked by default"), "{index}");
     assert!(index.contains("id=\"undobtn\""), "{index}");
+    assert!(index.contains("id=\"zoomfit\""), "{index}");
+    assert!(index.contains("src=\"/watch.js\""), "{index}");
+
+    let css = watch_http_get(port, "/watch.css");
+    assert!(css.contains("200 OK"), "{css}");
+    assert!(css.contains("text/css"), "{css}");
+    assert!(css.contains(".zoom-controls"), "{css}");
+
+    let js = watch_http_get(port, "/watch.js");
+    assert!(js.contains("200 OK"), "{js}");
+    assert!(js.contains("text/javascript"), "{js}");
+    assert!(js.contains("function zoomAt("), "{js}");
+    assert!(js.contains("function panViewport("), "{js}");
+    assert!(js.contains("function installShapeTargets("), "{js}");
+
+    let viewport = watch_http_get(port, "/viewport.js");
+    assert!(viewport.contains("200 OK"), "{viewport}");
+    assert!(viewport.contains("class ViewBoxCamera"), "{viewport}");
+
+    let geometry = watch_http_get(port, "/path-geometry.js");
+    assert!(geometry.contains("200 OK"), "{geometry}");
+    assert!(geometry.contains("function buildPath"), "{geometry}");
 
     let state = watch_http_get(port, "/state.json");
     assert!(state.contains("\"version\":1"), "{state}");
@@ -1762,11 +1784,20 @@ fn watch_visually_edits_points_controls_and_topology() {
     assert!(state.contains("\"controlsEditable\":true"), "{state}");
     assert!(state.contains("\"canSymmetrize\":true"), "{state}");
     assert!(state.contains("\"canUndo\":false"), "{state}");
+    assert!(
+        state.contains("\"targets\":[{\"name\":\"curve-preview\",\"shape\":\"curve\",\"transform\":[1,0,0,1,0,0]}]"),
+        "{state}"
+    );
 
     let moved = watch_http_post(port, "/edit", "action=move&shape=curve&point=a&x=12&y=14");
     assert!(moved.contains("200 OK"), "{moved}");
     let source = fs::read_to_string(&strok_path).unwrap();
     assert!(source.contains("addpoint a at=12,14"), "{source}");
+
+    let nudged = watch_http_post(port, "/edit", "action=nudge&shape=curve&point=d&dx=1&dy=-2");
+    assert!(nudged.contains("200 OK"), "{nudged}");
+    let source = fs::read_to_string(&strok_path).unwrap();
+    assert!(source.contains("addpoint d at=11,68"), "{source}");
 
     let controlled = watch_http_post(
         port,
