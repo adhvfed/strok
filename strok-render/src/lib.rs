@@ -17,5 +17,7 @@ pub use diff::{
     compare, decode_png, diff_png_bytes, encode_png, DiffError, DiffStats,
     GOLDEN_FRACTION_TOLERANCE, GOLDEN_MEAN_TOLERANCE, PER_PIXEL_CHANGE_THRESHOLD,
 };
-pub use render::{render_svg_string, render_to_png, RenderError, RenderOptions};
+pub use render::{
+    render_svg_string, render_to_png, target_dimensions, RenderError, RenderOptions, RenderRegion,
+};
 pub use sheet::{contact_sheet, SheetOptions, SheetTile};

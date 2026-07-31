@@ -1,23 +1,58 @@
-# Slice 0 demo source for `strok emit`.
-# Geometry-only today (UX-primitive `component`/`frame` DSL is design-doc §5).
-# Tokens here flow to: the inlined SVG (resolved) AND `strok emit tailwind`.
-documentsize 160x48
+# A polished call-to-action built from reusable shapes, gradients, and text.
+# Render: strok -f examples/button.strok render --out examples/button.png
+documentsize 360x120
 
 palette
-  accent #c8863a
-  ink #1a1a1a
-  surface #faf6f0
+  canvas #090d18
+  glow #6275ff
+  button-a #5367f5
+  button-b #8b5cf6
+  button-edge #a9b4ff
+  ink #ffffff
 
-shape pill template=rectangle
-  round-corners 10
-  fill $accent
+shape canvas template=rectangle
+  fill $canvas
+
+shape glow template=ellipse
+  fill radial(center, 80%, #6275ff, transparent)
+  opacity 0.55
+  blur 10
+
+shape button template=rectangle
+  round-corners 16
+  fill linear(left, right, #5367f5, #8b5cf6)
+  stroke $button-edge
+  stroke-width 1
+
+shape sheen template=line
+  stroke #ffffff
+  stroke-width 1
+  opacity 0.24
+
+shape arrow template=path
+  addpoint tail at=0,8
+  addpoint tip at=16,8
+  addpoint upper at=11,3
+  subpath
+  addpoint start at=16,8
+  addpoint lower at=11,13
+  stroke $ink
+  stroke-width 2
+  stroke-linecap round
+  stroke-linejoin round
+  fill none
 
 shape label template=text
-  content "Click me"
-  font-size 18
-  font-family "Georgia"
-  fill $surface
+  content "Create project"
+  font-size 17
+  font-weight bold
+  font-family "sans-serif"
+  fill $ink
   text-anchor middle
 
-place bg shape=pill at=0,0 size=160x48
-place text shape=label at=80,30
+place canvas shape=canvas at=0,0 size=360x120
+place aura shape=glow at=56,16 size=248x88
+place action shape=button at=70,32 size=220x56
+place top-light shape=sheen from=92,39 to=268,39
+place arrow shape=arrow at=246,52 size=16x16
+place label shape=label at=169,67

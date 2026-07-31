@@ -1,7 +1,7 @@
 //! Perf bench (E1.6): time `resolve_scene` on a representative doc and on a
 //! large (≥1000-element) synthetic doc. Pairs with `tests/perf_budget.rs`, which
 //! asserts loose ceilings so an O(n²) regression in (e.g.) the `resolve` anchor
-//! lookup can't land silently. The numbers are documented in CLAUDE.md.
+//! lookup cannot land silently.
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::hint::black_box;

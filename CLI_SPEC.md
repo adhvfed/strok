@@ -8,17 +8,34 @@ Binary name: `strok` (alias: `strøk` where supported)
 strok -f <file> <command> [args...]
 ```
 
-`-f <file>` — target document (`.strok` format). Required for all commands except `new` and `version`.
+`-f <file>` — target document (`.strok` format). Required for file-bound
+commands; `agent-intro`, `guide`, `new`, `import`, `lib`, and `mcp-server` do not
+need it.
 
 Every command reads the file, performs the operation, writes it back. No session state, no running process. The file is the single source of truth.
 
 ## Document Lifecycle
+
+### `agent-intro`
+
+Agents should start here before authoring:
+
+```
+strok agent-intro
+```
+
+The introduction treats Strøk as a visual construction and feedback system. It
+defines sketch, production, and showcase effort levels; teaches command and
+standard-library discovery; and gives a full-frame/region render loop with
+explicit completion gates. The same introduction is exposed as the MCP
+`agent_intro` tool.
 
 ### `guide`
 
 Read the visual-quality workflow before authoring a key asset:
 
 ```
+strok guide illustration
 strok guide icon
 strok guide logo
 strok guide diagram
@@ -28,6 +45,11 @@ The guides make art direction explicit, steer geometric work toward the right
 primitives, and require review at both shipping size and enlarged size. The same
 guidance is exposed as the MCP `guide` tool so an agent can load it before
 creating source.
+
+The illustration guide teaches layered composition, semantic object
+construction, material-specific geometry, lighting/depth, and high-resolution
+focal-region review. It includes concrete checks for vessels, books, organic
+forms, attachments, perspective, and edge quality.
 
 The diagram guide additionally teaches relational label placement, the raw SVG
 baseline semantics of plain text `at=x,y`, and the `audit`/`query --overlaps`
@@ -749,19 +771,45 @@ strok -f portrait.strok audit --json
 Rasterize the document to PNG.
 
 ```
-strok -f <file> render [--out <file.png>] [--width <px>] [--height <px>] [--color <hex>] [--annotate] [--scheme <name>]
+strok -f <file> render [--out <file.png>] [--width <px>] [--height <px>]
+                       [--region <x,y,w,h>] [--node <name>] [--annotate]
+                       [--outline [<id1,id2>]]
+                       [--color <hex>] [--bg <color>] [--scheme <name>]
 ```
 
 - Defaults to document dimensions if no width/height is specified
 - If only one dimension is specified, the other is inferred from the document
   aspect ratio; specify both to stretch intentionally
 - If `--out` is omitted, writes to stdout (for piping)
-- `--element <id>`: render only a specific element/subtree with its bounding box as the viewport
+- `--node <name>`: render only a named place or shape on an otherwise empty canvas
+- `--region <x,y,w,h>`: render a document-space crop. The output aspect ratio is
+  inferred from the region when only one output dimension is supplied. This is
+  the preferred way to inspect fine geometry, material edges, and focal objects
+  at high resolution:
+
+  ```
+  strok -f scene.strok render --region 450,340,220,180 --width 1200 --out /tmp/cup.png
+  ```
 - `--annotate` (C6 / E3.2): overlay each element's ID on the canvas (a top-left
   label per place/group, white-haloed for legibility) so an agent can map the
   rendered pixels back to the names it can reference. The underlying geometry is
   byte-identical to a normal render — only an additive `<g id="strok-annotations">`
   overlay is appended. Requires a v3 scene document.
+- `--outline`: overlay every named placed element's exact resolved geometry
+  above the normal scene. `--outline id1,id2` limits the overlay to the named
+  placed elements. The black-haloed white stroke preserves placement sizing,
+  flips, rotations, enclosing group transforms, clips, masks, and text layout;
+  it does not alter DSL styling or replace the painted scene. Its stroke does not
+  scale when used with `--region`, making it useful for inspecting silhouettes,
+  Bézier closure, joins, and part attachments at high resolution. Unknown IDs,
+  an explicit empty value, and IDs not present in a `--node` render are errors.
+  Requires a v3 scene document.
+
+  ```
+  strok -f scene.strok render --outline --out /tmp/all-geometry.png
+  strok -f scene.strok render --outline cup-body,cup-rim \
+    --region 450,340,220,180 --width 1200 --out /tmp/cup-geometry.png
+  ```
 - `--bg <color>`: background color (default: transparent)
 - `--color <hex>`: concrete ink to substitute for `currentColor` when rasterizing
   (default black). Preview a themeable icon light-on-dark with
@@ -961,8 +1009,8 @@ strok mcp-server
   `text` content carrying the same stable JSON the CLI `--json` flags emit.
 - **Tool errors** are returned as a successful call with `isError: true` (the
   model sees the message), not as a transport failure.
-- **Decision D-3 (recorded):** implemented as the documented thin stdio shim
-  rather than the `rmcp` SDK — see CLAUDE.md for the rationale.
+- **Decision D-3 (recorded):** implemented as a thin stdio shim rather than the
+  `rmcp` SDK to keep the transport stateless and the dependency surface small.
 
 ---
 

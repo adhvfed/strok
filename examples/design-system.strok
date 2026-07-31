@@ -1,66 +1,245 @@
-# A compact design system that exercises every Strøk code-generation target:
+# Luma UI — one token source rendered as a product surface and emitted to code.
 #
+#   strok -f examples/design-system.strok render --out examples/design-system.png
 #   strok -f examples/design-system.strok emit react   --out out/react
 #   strok -f examples/design-system.strok emit solid   --out out/solid
 #   strok -f examples/design-system.strok emit vanilla --out out/vanilla
 #   strok -f examples/design-system.strok emit tailwind --out out/theme
 #   strok -f examples/design-system.strok emit dtcg    --out out/tokens
-#   strok -f examples/design-system.strok render --out design-system.png
-documentsize 360x240
+documentsize 720x480
 
-# ── Tokens (color/space/radius/font/shadow) ─────────────────────────────────
 palette
-  surface #0f1115
-  surface-raised #161a20
-  surface-hover #1e242c
-  accent #5b8def
-  text-primary #e6eaf0
-  text-muted #8a94a6
-  border #232a33
+  canvas #080d17
+  surface #0f1727
+  surface-raised #151f33
+  surface-hover #1d2940
+  accent #7c6df2
+  accent-soft #a9a1ff
+  mint #53d5b5
+  text-primary #f3f5fb
+  text-muted #8f9bb2
+  border #27344d
 
 tokens
   space.xs 4
   space.sm 8
   space.md 16
   space.lg 24
-  radius.sm 4
-  radius.md 8
-  font.body "Inter"
-  font.mono "JetBrains Mono"
-  shadow.card "0 1px 2px rgba(0,0,0,0.4)"
+  radius.sm 8
+  radius.md 14
+  font.body "sans-serif"
+  font.mono "monospace"
+  shadow.card "0 12px 36px rgba(0,0,0,0.28)"
 
-# ── Geometry the components reuse ───────────────────────────────────────────
+# Components exercise every code-generation backend.
 shape glyph template=ellipse
   fill $accent
 
-shape label template=text
+shape component-label template=text
   content "Button"
   font-size 14
   font-family $font.body
   fill $text-primary
   text-anchor middle
 
-# ── Component: Button (primary / ghost variants, a real text label) ─────────
 component button variants=[primary, ghost] props=[label:text]
   frame root layout=flex(row, gap=8, padding=8,16, align=center, justify=center)
     fill $accent
     round-corners $radius.md
     place icon shape=glyph at=0,0 size=8x8
-    place text shape=label at=0,0 size=80x16
+    place text shape=component-label at=0,0 size=80x16
 
-# ── Component: NavItem (Instrument active state = surface fill + bright text) ─
 component navitem variants=[default, active] props=[label:text]
   frame root layout=flex(row, gap=8, padding=8,12, align=center)
     fill $surface-hover
     round-corners $radius.sm
     place glyph shape=glyph at=0,0 size=6x6
-    place text shape=label at=0,0 size=120x16
+    place text shape=component-label at=0,0 size=120x16
 
-# ── A composed screen using the components ──────────────────────────────────
-frame screen layout=flex(col, gap=16, padding=24) size=360x240 at=0,0
+# Static preview of the same visual language.
+shape canvas template=rectangle
+  fill $canvas
+
+shape panel template=rectangle
+  round-corners 14
   fill $surface
-  round-corners $radius.md
-  place heading shape=label at=0,0 size=200x20
+  stroke $border
+  stroke-width 1
 
-instance nav from=navitem variant=active label="Overview" at=24,80
-instance cta from=button variant=primary label="Create" at=24,180
+shape raised template=rectangle
+  round-corners 14
+  fill $surface-raised
+  stroke $border
+  stroke-width 1
+
+shape nav-active template=rectangle
+  round-corners 8
+  fill $surface-hover
+
+shape action template=rectangle
+  round-corners 8
+  fill $accent
+
+shape status template=rectangle
+  round-corners 10
+  fill #17352f
+
+shape divider template=line
+  stroke $border
+  stroke-width 1
+
+shape chart template=path
+  addpoint a at=0,62
+  addpoint b at=58,50 mode=catmull-rom tension=0.2
+  addpoint c at=118,56 mode=catmull-rom tension=0.2
+  addpoint d at=176,28 mode=catmull-rom tension=0.2
+  addpoint e at=238,36 mode=catmull-rom tension=0.2
+  addpoint f at=300,4 mode=catmull-rom tension=0.2
+  stroke $mint
+  stroke-width 4
+  stroke-linecap round
+  fill none
+
+shape mark template=ellipse
+  fill linear(top, bottom, #a9a1ff, #7c6df2)
+
+shape brand template=text
+  content "Luma"
+  font-size 20
+  font-weight bold
+  font-family $font.body
+  fill $text-primary
+
+shape nav-overview template=text
+  content "Overview"
+  font-size 14
+  font-weight bold
+  font-family $font.body
+  fill $text-primary
+
+shape nav-projects template=text
+  content "Projects"
+  font-size 14
+  font-family $font.body
+  fill $text-muted
+
+shape nav-library template=text
+  content "Library"
+  font-size 14
+  font-family $font.body
+  fill $text-muted
+
+shape heading template=text
+  content "Good morning."
+  font-size 28
+  font-weight bold
+  font-family $font.body
+  fill $text-primary
+
+shape subheading template=text
+  content "The system is calm and everything is moving."
+  font-size 14
+  font-family $font.body
+  fill $text-muted
+
+shape card-label template=text
+  content "ACTIVE PROJECTS"
+  font-size 11
+  font-weight bold
+  font-family $font.body
+  fill $text-muted
+
+shape card-label-secondary template=text
+  content "DELIVERY SCORE"
+  font-size 11
+  font-weight bold
+  font-family $font.body
+  fill $text-muted
+
+shape value template=text
+  content "12"
+  font-size 32
+  font-weight bold
+  font-family $font.body
+  fill $text-primary
+
+shape value-secondary template=text
+  content "94%"
+  font-size 32
+  font-weight bold
+  font-family $font.body
+  fill $text-primary
+
+shape delta template=text
+  content "+18%"
+  font-size 13
+  font-weight bold
+  font-family $font.body
+  fill $mint
+
+shape delta-secondary template=text
+  content "+6%"
+  font-size 13
+  font-weight bold
+  font-family $font.body
+  fill $mint
+
+shape activity-title template=text
+  content "Weekly activity"
+  font-size 17
+  font-weight bold
+  font-family $font.body
+  fill $text-primary
+
+shape status-label template=text
+  content "All systems healthy"
+  font-size 12
+  font-weight bold
+  font-family $font.body
+  fill $mint
+
+shape action-label template=text
+  content "New project"
+  font-size 13
+  font-weight bold
+  font-family $font.body
+  fill $text-primary
+  text-anchor middle
+
+place background shape=canvas at=0,0 size=720x480
+place sidebar shape=panel at=20,20 size=190x440
+place content shape=panel at=226,20 size=474x440
+
+place brand-mark shape=mark at=42,42 size=28x28
+place brand shape=brand at=80,63
+place nav-active shape=nav-active at=36,104 size=158x42
+place nav-dot shape=glyph at=50,119 size=10x10
+place nav-overview shape=nav-overview at=70,130
+place projects-dot shape=glyph at=52,172 size=6x6
+place nav-projects shape=nav-projects at=70,181
+place library-dot shape=glyph at=52,218 size=6x6
+place nav-library shape=nav-library at=70,227
+place sidebar-divider shape=divider from=36,402 to=194,402
+place health shape=status at=38,416 size=154x26
+place health-label shape=status-label at=54,434
+
+place heading shape=heading at=258,68
+place subheading shape=subheading at=258,94
+place action shape=action at=572,50 size=96x36
+place action-label shape=action-label at=620,73
+
+place metric-a shape=raised at=258,126 size=184x112
+place metric-b shape=raised at=456,126 size=212x112
+place label-a shape=card-label at=278,155
+place value-a shape=value at=278,203
+place delta-a shape=delta at=354,201
+place label-b shape=card-label-secondary at=476,155
+place value-b shape=value-secondary at=476,203
+place delta-b shape=delta-secondary at=568,201
+
+place activity shape=raised at=258,252 size=410x174
+place activity-title shape=activity-title at=280,284
+place chart-grid-a shape=divider from=280,330 to=640,330
+place chart-grid-b shape=divider from=280,364 to=640,364
+place chart-grid-c shape=divider from=280,398 to=640,398
+place chart shape=chart at=302,322

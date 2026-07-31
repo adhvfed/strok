@@ -1,5 +1,5 @@
 use strok_core::document::Document;
-use strok_render::{render_svg_string, render_to_png, RenderOptions};
+use strok_render::{render_svg_string, render_to_png, RenderOptions, RenderRegion};
 
 fn png_dimensions(bytes: &[u8]) -> (u32, u32) {
     let image = image::load_from_memory(bytes).unwrap();
@@ -76,6 +76,7 @@ fn render_with_custom_size() {
         height: Some(100),
         background: None,
         color: None,
+        region: None,
     };
     let png = render_to_png(&doc, &opts).unwrap();
     assert_eq!(png_dimensions(&png), (100, 100));
@@ -127,4 +128,53 @@ fn render_empty_document() {
     let png = render_to_png(&doc, &RenderOptions::default()).unwrap();
     assert!(png.len() > 8);
     assert_eq!(&png[0..4], &[0x89, 0x50, 0x4e, 0x47]);
+}
+
+#[test]
+fn region_render_crops_in_document_coordinates_and_preserves_aspect_ratio() {
+    let mut doc = Document::new(200.0, 100.0);
+    doc.append_svg(
+        "root",
+        r##"<rect id="left" width="100" height="100" fill="#ff0000"/>"##,
+    )
+    .unwrap();
+    doc.append_svg(
+        "root",
+        r##"<rect id="right" x="100" width="100" height="100" fill="#0000ff"/>"##,
+    )
+    .unwrap();
+    let opts = RenderOptions {
+        width: Some(80),
+        region: Some(RenderRegion {
+            x: 100.0,
+            y: 0.0,
+            width: 100.0,
+            height: 100.0,
+        }),
+        ..Default::default()
+    };
+
+    let png = render_to_png(&doc, &opts).unwrap();
+    let image = image::load_from_memory(&png).unwrap().to_rgba8();
+
+    assert_eq!(image.dimensions(), (80, 80));
+    assert_eq!(image.get_pixel(40, 40).0, [0, 0, 255, 255]);
+}
+
+#[test]
+fn region_render_rejects_a_crop_outside_the_document() {
+    let doc = Document::new(200.0, 100.0);
+    let opts = RenderOptions {
+        region: Some(RenderRegion {
+            x: 150.0,
+            y: 0.0,
+            width: 100.0,
+            height: 100.0,
+        }),
+        ..Default::default()
+    };
+
+    let error = render_to_png(&doc, &opts).unwrap_err().to_string();
+
+    assert!(error.contains("exceeds the 200x100 document"), "{error}");
 }

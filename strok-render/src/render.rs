@@ -10,6 +10,16 @@ pub enum RenderError {
     Render(String),
     #[error("png encode error: {0}")]
     PngEncode(String),
+    #[error("invalid render region: {0}")]
+    InvalidRegion(String),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RenderRegion {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
 }
 
 #[derive(Default)]
@@ -21,15 +31,22 @@ pub struct RenderOptions {
     /// no inherited `color` context, so icons authored with `currentColor` need a
     /// value here (default black). SVG export keeps `currentColor` verbatim.
     pub color: Option<String>,
+    /// Optional crop in document coordinates. Rendering a focused region at a
+    /// large output size is useful for inspecting fine geometry and materials.
+    pub region: Option<RenderRegion>,
 }
 
 pub fn render_to_png(doc: &Document, opts: &RenderOptions) -> Result<Vec<u8>, RenderError> {
     let svg_str = emit::emit_document(doc);
-    let (w, h) = target_dimensions(doc.width, doc.height, opts.width, opts.height);
+    let (source_w, source_h) = opts
+        .region
+        .map(|region| (region.width, region.height))
+        .unwrap_or((doc.width, doc.height));
+    let (w, h) = target_dimensions(source_w, source_h, opts.width, opts.height);
     render_svg_string(&svg_str, w, h, doc.width, doc.height, opts)
 }
 
-fn target_dimensions(
+pub fn target_dimensions(
     doc_width: f64,
     doc_height: f64,
     requested_width: Option<u32>,
@@ -89,15 +106,69 @@ pub fn render_svg_string(
         }
     }
 
-    let sx = target_w as f32 / doc_w as f32;
-    let sy = target_h as f32 / doc_h as f32;
-    let transform = resvg::tiny_skia::Transform::from_scale(sx, sy);
+    let (source_x, source_y, source_w, source_h) = match opts.region {
+        Some(region) => {
+            validate_region(region, doc_w, doc_h)?;
+            (region.x, region.y, region.width, region.height)
+        }
+        None => (0.0, 0.0, doc_w, doc_h),
+    };
+    let sx = target_w as f32 / source_w as f32;
+    let sy = target_h as f32 / source_h as f32;
+    let transform = resvg::tiny_skia::Transform::from_row(
+        sx,
+        0.0,
+        0.0,
+        sy,
+        -(source_x as f32) * sx,
+        -(source_y as f32) * sy,
+    );
 
     resvg::render(&tree, transform, &mut pixmap.as_mut());
 
     pixmap
         .encode_png()
         .map_err(|e| RenderError::PngEncode(e.to_string()))
+}
+
+fn validate_region(
+    region: RenderRegion,
+    doc_width: f64,
+    doc_height: f64,
+) -> Result<(), RenderError> {
+    let values = [
+        region.x,
+        region.y,
+        region.width,
+        region.height,
+        doc_width,
+        doc_height,
+    ];
+    if values.iter().any(|value| !value.is_finite()) {
+        return Err(RenderError::InvalidRegion(
+            "coordinates and dimensions must be finite".to_string(),
+        ));
+    }
+    if region.x < 0.0 || region.y < 0.0 {
+        return Err(RenderError::InvalidRegion(
+            "x and y must be zero or greater".to_string(),
+        ));
+    }
+    if region.width <= 0.0 || region.height <= 0.0 {
+        return Err(RenderError::InvalidRegion(
+            "width and height must be greater than zero".to_string(),
+        ));
+    }
+    const EPSILON: f64 = 1e-9;
+    if region.x + region.width > doc_width + EPSILON
+        || region.y + region.height > doc_height + EPSILON
+    {
+        return Err(RenderError::InvalidRegion(format!(
+            "region {},{},{},{} exceeds the {}x{} document",
+            region.x, region.y, region.width, region.height, doc_width, doc_height
+        )));
+    }
+    Ok(())
 }
 
 fn parse_color(s: &str) -> Option<resvg::tiny_skia::Color> {

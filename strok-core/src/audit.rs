@@ -359,6 +359,14 @@ fn detect_mirrors(scene: &Scene) -> Vec<Finding> {
             _ => continue,
         };
 
+        // The author has already defined the geometry once and reused it.
+        // Mirror detection exists to find two separate shape definitions that
+        // can collapse into one; reporting a reused shape produces an
+        // impossible "delete shape <place-name>" suggestion.
+        if left_place.shape_ref == right_place.shape_ref {
+            continue;
+        }
+
         // Get the shapes
         let left_shape = scene.find_shape(&left_place.shape_ref);
         let right_shape = scene.find_shape(&right_place.shape_ref);
@@ -415,9 +423,9 @@ fn detect_mirrors(scene: &Scene) -> Vec<Finding> {
                     line_savings,
                 ),
                 suggestion: format!(
-                    "delete shape '{}', then place it mirrored: \
+                    "delete shape '{}', then change place '{}': \
                      place {} shape={} flip=x",
-                    right_name, right_name, left_name,
+                    right_shape.name, right_name, right_name, left_shape.name,
                 ),
                 line_savings,
             });
@@ -435,18 +443,6 @@ fn composition_summary(scene: &Scene, mirror_count: usize) -> Vec<Finding> {
 
     // Count usage of composition features
     let flip_count = all_places.iter().filter(|p| p.flip.is_some()).count();
-    let link_count = scene
-        .nodes
-        .iter()
-        .filter(|n| matches!(n, SceneNode::Link(_)))
-        .count();
-
-    // Count duplicate shape refs (same shape placed multiple times)
-    let mut shape_usage: HashMap<&str, usize> = HashMap::new();
-    for place in &all_places {
-        *shape_usage.entry(&place.shape_ref).or_insert(0) += 1;
-    }
-    let duplicate_geometries = shape_usage.values().filter(|&&count| count > 2).count();
 
     if flip_count == 0 && mirror_count > 0 {
         findings.push(Finding {
@@ -454,19 +450,6 @@ fn composition_summary(scene: &Scene, mirror_count: usize) -> Vec<Finding> {
             message: format!(
                 "flip=x available but never used ({} mirrored shape pairs detected)",
                 mirror_count,
-            ),
-            detail: String::new(),
-            suggestion: String::new(),
-            line_savings: 0,
-        });
-    }
-
-    if link_count == 0 && duplicate_geometries > 0 {
-        findings.push(Finding {
-            kind: FindingKind::UnusedComposition,
-            message: format!(
-                "createlink available but never used ({} duplicate geometries found)",
-                duplicate_geometries,
             ),
             detail: String::new(),
             suggestion: String::new(),
@@ -1364,6 +1347,34 @@ place eye-r shape=eye-r at=0,0 size=40x30
             findings.iter().any(|f| f.kind == FindingKind::NearMirror),
             "should detect mirror pair, got: {:?}",
             findings,
+        );
+    }
+
+    #[test]
+    fn reused_shape_with_left_right_place_names_is_not_a_mirror_finding() {
+        let input = "\
+documentsize 400x400
+
+shape lens template=ellipse
+  fill none
+  stroke #334455
+
+place lens-left shape=lens at=80,100 size=60x40
+place lens-right shape=lens at=260,100 size=60x40
+";
+        let scene = dsl_parse::parse_file(input).unwrap();
+        let findings = audit(&scene);
+        assert!(
+            !findings
+                .iter()
+                .any(|finding| finding.kind == FindingKind::NearMirror),
+            "reusing one shape is already the recommended composition: {findings:?}",
+        );
+        assert!(
+            !findings.iter().any(|finding| finding
+                .message
+                .contains("createlink available but never used")),
+            "placing one reusable shape repeatedly must not recommend createlink: {findings:?}",
         );
     }
 

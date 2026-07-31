@@ -29,7 +29,7 @@ pub struct UiDoc {
     /// The root node of the UI tree.
     pub root: UiNode,
     /// Notes produced during lowering (e.g. "effect rasterized — CSS can't express it").
-    /// Surfaced, never silent (CLAUDE.md: no lie-by-omission).
+    /// Surfaced to callers rather than silently discarded.
     pub diagnostics: Vec<String>,
 }
 

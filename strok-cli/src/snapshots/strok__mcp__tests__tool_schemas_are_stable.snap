@@ -4,14 +4,23 @@ expression: catalog.to_string_pretty()
 ---
 [
   {
+    "name": "agent_intro",
+    "description": "Read this first. Explains Strøk effort levels, tool discovery, construction order, visual feedback loops, and completion gates.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    }
+  },
+  {
     "name": "guide",
-    "description": "Read the visual-quality workflow before authoring an icon, logo, or diagram. Covers style selection, geometry/text traps, and required review sizes.",
+    "description": "Read the visual-quality workflow before authoring an illustration, icon, logo, or diagram. Covers style selection, geometry/text traps, and required review sizes.",
     "inputSchema": {
       "type": "object",
       "properties": {
         "topic": {
           "type": "string",
-          "description": "Guide topic: icon, logo, or diagram."
+          "description": "Guide topic: illustration, icon, logo, or diagram."
         }
       },
       "required": [
@@ -60,7 +69,7 @@ expression: catalog.to_string_pretty()
   },
   {
     "name": "render",
-    "description": "Render a document to PNG, returned as an inline image. Optional width/height/color (for currentColor) and bg.",
+    "description": "Render a document to PNG, returned as an inline image. Optional width/height/color (for currentColor), bg, region crop, and resolved-geometry outline inspection.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -75,6 +84,14 @@ expression: catalog.to_string_pretty()
         "height": {
           "type": "integer",
           "description": "Render height in pixels."
+        },
+        "region": {
+          "type": "string",
+          "description": "Optional document-space crop as x,y,w,h for high-resolution detail review."
+        },
+        "outline": {
+          "type": "string",
+          "description": "Optional geometry overlay: '*' for all placed elements, or comma-separated placed IDs."
         },
         "color": {
           "type": "string",

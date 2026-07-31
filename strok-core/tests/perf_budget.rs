@@ -1,8 +1,8 @@
 //! Perf budget (E1.6): loose wall-clock ceilings that catch order-of-magnitude
 //! regressions (e.g. an O(n²) blow-up in the `resolve` anchor lookup, which is
-//! currently a name-string `find` — see CLAUDE.md). These are intentionally
-//! generous (≥10× the observed time on a dev laptop) so they don't flake on a
-//! slow/loaded CI runner; they exist to catch a *regression*, not to micro-gate.
+//! currently a name-string `find`). These are intentionally generous (≥10× the
+//! observed time on a dev laptop) so they don't flake on a slow/loaded CI
+//! runner; they exist to catch a *regression*, not to micro-gate.
 
 use std::time::Instant;
 

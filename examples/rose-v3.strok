@@ -6,6 +6,18 @@ shape bg template=rectangle
 
 place bg shape=bg at=0,0 size=400x400
 
+# A soft focal field keeps the flower from floating on a blank canvas.
+shape halo template=ellipse
+  fill radial(center, 82%, #fde5e7, transparent)
+
+shape ground-shadow template=ellipse
+  fill #ddcbc6
+  opacity 0.55
+  blur 4
+
+place halo shape=halo at=72,52 size=256x256
+place ground-shadow shape=ground-shadow at=156,378 size=88x12
+
 # ---- STEM ----
 
 shape stem template=path

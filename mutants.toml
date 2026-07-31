@@ -4,9 +4,8 @@
 # whole tree would be slow and noisy; these are the files where a surviving
 # mutant is a real test gap.
 #
-# Budget + baseline are recorded in CLAUDE.md ("Mutation testing"). CI runs this
-# nightly (not per-PR — it is slow). `just gate` runs a fast smoke (a tiny
-# sample) so the wiring can't rot.
+# CI runs the full suite nightly because it is slow. `just gate` runs a small
+# sample so the mutation-testing wiring cannot silently rot.
 examine_globs = [
     "strok-core/src/path_point.rs",
     "strok-core/src/path_ops.rs",

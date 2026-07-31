@@ -1,8 +1,7 @@
 //! Local gate runner for the Strøk workspace.
 //!
 //! `cargo xtask gate` runs the same checks CI runs, in the same order, so a
-//! contributor can reproduce CI locally. No chunk is done until `cargo xtask
-//! gate` (a.k.a. `just gate`) is green — see CLAUDE.md.
+//! contributor can reproduce CI locally.
 //!
 //! Steps (E1.1 / E1.4 / E1.6):
 //! 1. cargo fmt --check — formatting is a hard gate.
@@ -84,9 +83,9 @@ fn run_gate() -> ExitCode {
 
     // mutants-smoke (E1.6): a fast cargo-mutants sample over a slice of the
     // geometry hot path. This is NOT the full budgeted run (that is nightly via
-    // `cargo mutants` + mutants.toml — see CLAUDE.md); it just proves the
-    // mutation harness still runs and the geometry tests still kill mutants. If
-    // cargo-mutants isn't installed we SKIP (not fail) so the core gate is
+    // `cargo mutants` + mutants.toml); it just proves the mutation harness still
+    // runs and the geometry tests still kill mutants. If cargo-mutants isn't
+    // installed we SKIP (not fail) so the core gate is
     // always reproducible.
     eprintln!("\n=== gate: mutants-smoke (E1.6) ===");
     if cargo_mutants_available() {

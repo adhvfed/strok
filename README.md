@@ -28,6 +28,17 @@ cargo install --path strok-cli
 
 ## Quick start
 
+Agents should first run:
+
+```sh
+strok agent-intro
+strok guide illustration # or icon, logo, diagram
+```
+
+The introduction selects an appropriate effort level and teaches the
+render-review loop, including high-resolution focal-region inspection and
+`render --outline [id1,id2]` for reading exact geometry through paint and shading.
+
 ```sh
 strok new face.strok 200x200
 strok -f face.strok shape head --template ellipse "fill #ffcc88"
@@ -46,9 +57,17 @@ place head shape=head at=0,0 size=200x200
 
 Run `strok --help` for the complete workflow and DSL guide. See
 [DSL_SPEC.md](DSL_SPEC.md) for the language reference,
-[CLI_SPEC.md](CLI_SPEC.md) for command behavior, and
-[examples/design-system.strok](examples/design-system.strok) for a larger
-example.
+[CLI_SPEC.md](CLI_SPEC.md) for command behavior.
+
+## Examples
+
+| Product UI | Shape library | Illustration |
+| --- | --- | --- |
+| [![Product card](examples/card.png)](examples/card.strok) | [![Shape language](examples/shape-language.png)](examples/shape-language.strok) | [![Quiet Hour](examples/tea.png)](examples/tea.strok) |
+
+The [example gallery](examples/README.md) ranges from a single button to a
+tokenized design system, built-in module catalog, and complete illustrations.
+Each preview links directly to its editable `.strok` source.
 
 ## Project status
 

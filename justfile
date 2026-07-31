@@ -1,7 +1,5 @@
-# Strøk task runner. `just gate` is the local mirror of CI — no chunk is done
-# until it is green (see CLAUDE.md). It delegates to the xtask crate so the
-# logic is one place and works without `just` installed too
-# (`cargo xtask gate`).
+# Strøk task runner. `just gate` mirrors CI through the xtask crate, so the
+# same checks also work without `just` (`cargo xtask gate`).
 
 # Run the full local gate: fmt + clippy(-D warnings) + test + golden + mutants-smoke.
 gate:
@@ -31,13 +29,26 @@ clippy:
 test:
     cargo test --workspace
 
+# Regenerate the checked-in example previews from their canonical sources.
+examples:
+    cargo build -p strok-cli
+    target/debug/strok -f examples/button.strok render --out examples/button.png
+    target/debug/strok -f examples/card.strok render --out examples/card.png
+    target/debug/strok -f examples/design-system.strok render --out examples/design-system.png
+    target/debug/strok -f examples/pelican-on-a-bicycle.strok render --out examples/pelican-on-a-bicycle.png
+    target/debug/strok -f examples/rose-v3.strok render --out examples/rose-v3.png
+    target/debug/strok -f examples/shape-language.strok render --out examples/shape-language.png
+    target/debug/strok -f examples/std-library.strok render --out examples/std-library.png
+    target/debug/strok -f examples/tea.strok render --out examples/tea.png
+    target/debug/strok -f examples/field-test/launch-day.strok render --out examples/field-test/launch-day.png
+
 # Golden suite only (textual-SVG insta snapshots + perceptual PNG comparison).
 golden:
     cargo test -p strok-render --test golden
 
 # Re-bless golden artifacts deliberately. STROK_BLESS=1 regenerates the
 # expected PNGs; `cargo insta accept` accepts the textual-SVG snapshots.
-# A PR that re-blesses MUST show the before/after diff PNG (see CLAUDE.md).
+# A pull request that re-blesses should show the before/after diff PNG.
 bless:
     STROK_BLESS=1 cargo test -p strok-render --test golden || true
     cargo insta accept || true

@@ -820,6 +820,61 @@ fn annotate_overlay_is_stable() {
     assert_eq!(annotated.matches("strok-annotations").count(), 1);
 }
 
+#[test]
+fn outline_overlay_is_additive_exact_and_selective() {
+    let input = concat!(
+        "documentsize 100x60\n",
+        "shape box template=rectangle\n  fill #102030\n",
+        "group shifted at=7,5 rotation=12deg\n",
+        "  place card shape=box at=10,10 size=40x30\n",
+        "place badge shape=box at=70,10 size=20x20\n",
+    );
+    let scene = dsl_parse::parse_file(input).unwrap();
+    let base = resolve::resolve_scene(&scene);
+    let outlined = resolve::add_outline_overlay(&base, Some(&["card".to_string()])).unwrap();
+
+    let base_body = base.split_once("</svg>").unwrap().0;
+    assert!(outlined.starts_with(base_body), "outline must be additive");
+    assert!(outlined.contains("id=\"strok-outline-overlay\""));
+    assert!(
+        outlined.contains("id=\"strok-outline-ink-card\""),
+        "selected path geometry is cloned: {outlined}"
+    );
+    assert!(
+        outlined.contains("id=\"strok-outline-ink-shifted\""),
+        "the exact enclosing group transform is cloned: {outlined}"
+    );
+    assert!(
+        outlined.contains("#strok-outline-ink [id=\"strok-outline-ink-card\"]"),
+        "selected ID receives foreground outline style: {outlined}"
+    );
+    assert!(
+        !outlined.contains("#strok-outline-ink [id=\"strok-outline-ink-badge\"]"),
+        "unselected ID must not receive outline style: {outlined}"
+    );
+    assert!(
+        outlined.contains("vector-effect: non-scaling-stroke"),
+        "region/zoom review keeps the inspection stroke readable"
+    );
+
+    let err = resolve::add_outline_overlay(&base, Some(&["ghost".to_string()])).unwrap_err();
+    assert!(
+        err.to_string().contains("ghost")
+            && err
+                .to_string()
+                .contains("not a placed element in this render"),
+        "{err}"
+    );
+}
+
+#[test]
+fn outline_overlay_rejects_an_explicit_empty_selection() {
+    let scene = dsl_parse::parse_file("documentsize 10x10\n").unwrap();
+    let base = resolve::resolve_scene(&scene);
+    let err = resolve::add_outline_overlay(&base, Some(&[])).unwrap_err();
+    assert!(err.to_string().contains("selection is empty"), "{err}");
+}
+
 // --- C7 (E3.3): op-log history replay backs `diff --since` ------------------
 
 #[test]

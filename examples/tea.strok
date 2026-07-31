@@ -1,779 +1,496 @@
-documentsize 1000x800
+# Quiet Hour — a showcase editorial illustration.
+#
+# Agent effort: showcase. Review the full frame and the two focal regions:
+#   strok -f examples/tea.strok render --out examples/tea.png
+#   strok -f examples/tea.strok render --region 120,430,500,250 --width 1400 --out /tmp/tea-book.png
+#   strok -f examples/tea.strok render --region 600,400,300,260 --width 1200 --out /tmp/tea-cup.png
+#   strok -f examples/tea.strok render --outline cup-body,cup-rim,handle,tea --region 590,450,240,190 --width 1400 --out /tmp/tea-cup-geometry.png
+documentsize 960x720
 
-# ============================================================
-# WOMAN READING A BOOK WITH TEA — warm interior scene
-# ============================================================
+palette
+  night #071521
+  night-mid #0d2638
+  night-soft #17394d
+  window-frame #203d50
+  moon #ffd58a
+  moon-edge #f2ad58
+  desk #3a251f
+  desk-light #603c2d
+  desk-edge #241713
+  ceramic #f6efe4
+  ceramic-warm #ddd0bf
+  tea #a95829
+  tea-light #d58445
+  paper #eee0c5
+  paper-light #f7ecd7
+  paper-edge #bfa783
+  ink #f5ead8
+  muted #9fb2c1
+  type #7e6c55
+  metal #b8c6ce
+  metal-dark #6d818e
+  accent #58b89a
 
-# ============================================================
-# BACKGROUND
-# ============================================================
+# --- Atmosphere -------------------------------------------------------------
 
-shape wall template=rectangle
-  fill linear(top, bottom, #3a2820, #2a1c16)
-  stroke none
-place wall shape=wall at=0,0 size=1000x800
+shape background template=rectangle
+  fill linear(top, bottom, #071521, #17394d)
 
-# --- Warm ambient glow (window light from left) ---
-shape wall-glow template=ellipse
-  fill radial(center, 90%, #5a4030, transparent)
-  stroke none
-place wall-glow shape=wall-glow at=50,100 size=600x500
+shape window-recess template=rectangle
+  round-corners 18
+  fill #06111b
+  stroke $window-frame
+  stroke-width 8
 
-shape wall-glow-2 template=ellipse
-  fill radial(center, 90%, #4a3428, transparent)
-  stroke none
-place wall-glow-2 shape=wall-glow-2 at=200,50 size=500x400
+shape sky-glow template=ellipse
+  fill radial(center, 74%, #f2ad58, transparent)
+  opacity 0.28
+  blur 28
 
-# ============================================================
-# TABLE
-# ============================================================
+shape moon template=ellipse
+  fill radial(center, 78%, #ffd58a, #f2ad58)
 
-shape table-top template=path
-  fill linear(top, bottom, #5a3a24, #4a2e1c)
-  stroke none
-  addpoint tl at=0,520
-  addpoint tr at=1000,520
-  addpoint br at=1000,580 after=tr
-  addpoint bl at=0,580 after=br
+shape moon-shade template=ellipse
+  fill #e8a74f
+  opacity 0.16
+
+shape star template=ellipse
+  fill #dce9ef
+  opacity 0.72
+
+shape far-hills template=path
+  addpoint left at=70,360
+  addpoint a at=170,294 mode=catmull-rom tension=0.18
+  addpoint b at=280,334 mode=catmull-rom tension=0.18
+  addpoint c at=408,250 mode=catmull-rom tension=0.18
+  addpoint d at=528,312 mode=catmull-rom tension=0.18
+  addpoint e at=652,236 mode=catmull-rom tension=0.18
+  addpoint f at=784,310 mode=catmull-rom tension=0.18
+  addpoint right at=890,270 mode=catmull-rom tension=0.18
+  addpoint br at=890,416
+  addpoint bl at=70,416
   close
-place table-top shape=table-top at=0,0
+  fill #10293a
 
-# --- Table edge highlight ---
-shape table-edge template=path
-  fill linear(top, bottom, #7a5438, #5a3a24)
-  stroke none
-  addpoint tl at=0,520
-  addpoint tr at=1000,520
-  addpoint br at=1000,528 after=tr
-  addpoint bl at=0,528 after=br
+shape near-hills template=path
+  addpoint left at=70,380
+  addpoint a at=210,326 mode=catmull-rom tension=0.16
+  addpoint b at=350,382 mode=catmull-rom tension=0.16
+  addpoint c at=520,306 mode=catmull-rom tension=0.16
+  addpoint d at=660,370 mode=catmull-rom tension=0.16
+  addpoint e at=790,328 mode=catmull-rom tension=0.16
+  addpoint right at=890,350 mode=catmull-rom tension=0.16
+  addpoint br at=890,416
+  addpoint bl at=70,416
   close
-place table-edge shape=table-edge at=0,0
+  fill #091d2b
 
-# --- Table surface sheen ---
-shape table-sheen template=ellipse
-  fill radial(center, 80%, #6a4830, transparent)
-  stroke none
-  opacity 0.3
-place table-sheen shape=table-sheen at=250,520 size=500x50
+shape window-bar template=rectangle
+  fill $window-frame
 
-# --- Table front face ---
-shape table-front template=rectangle
-  fill linear(top, bottom, #4a2e1c, #3a2214)
-  stroke none
-place table-front shape=table-front at=0,580 size=1000x220
+shape eyebrow template=text
+  content "QUIET HOUR"
+  font-size 15
+  font-weight bold
+  font-family "sans-serif"
+  fill $moon
 
-# --- Table leg shadows ---
-shape table-leg template=rectangle
-  fill #2a1a10
-  stroke none
-  opacity 0.5
-place table-leg-l shape=table-leg at=150,580 size=20x220
-place table-leg-r shape=table-leg at=830,580 size=20x220
+shape title template=text
+  content "A small world, held still."
+  font-size 37
+  font-weight bold
+  font-family "Georgia"
+  fill $ink
 
-# ============================================================
-# TEA CUP (right side of table)
-# ============================================================
+shape caption template=text
+  content "Steam, paper, moonlight—and the last page of the day."
+  font-size 16
+  font-family "sans-serif"
+  fill $muted
 
-# --- Saucer ---
-shape saucer template=ellipse
-  fill linear(top, bottom, #e8e0d8, #c8c0b8)
-  stroke #b0a898
-  stroke-width 1
-place saucer shape=saucer at=645,500 size=110x30
+place background shape=background at=0,0 size=960x720
+place window-recess shape=window-recess at=48,38 size=864x392
+place sky-glow shape=sky-glow at=616,52 size=258x258
+place moon shape=moon at=675,100 size=142x142
+place moon-shade shape=moon-shade at=712,111 size=92x120 rotation=-18deg
 
-# --- Cup body ---
-shape cup-body template=path
-  fill linear(top, bottom, #f0e8e0, #d8d0c8)
-  stroke #c0b8b0
-  stroke-width 1
-  addpoint tl at=0,0
-  addpoint tr at=60,0 after=tl
-  addpoint br at=52,50 after=tr mode=catmull-rom tension=0.4
-  addpoint bl at=8,50 after=br mode=catmull-rom tension=0.4
-  close
-place cup-body shape=cup-body at=670,465 size=60x50
+place star-a shape=star center=266,98 radius=2
+place star-b shape=star center=286,216 radius=1.4
+place star-c shape=star center=335,88 radius=1.8
+place star-d shape=star center=510,146 radius=1.5
+place star-e shape=star center=592,82 radius=2.2
+place star-f shape=star center=842,126 radius=1.6
+place star-g shape=star center=866,215 radius=1.2
 
-# --- Cup rim ---
-shape cup-rim template=ellipse
-  fill linear(top, bottom, #f8f0e8, #e8e0d8)
-  stroke #c0b8b0
-  stroke-width 1
-place cup-rim shape=cup-rim at=668,460 size=64x16
+place far-hills shape=far-hills at=0,0
+place near-hills shape=near-hills at=0,0
+place window-sill shape=window-bar at=58,412 size=844x18
 
-# --- Tea liquid visible in cup ---
-shape tea-liquid template=ellipse
-  fill radial(center, 80%, #8a5020, #6a3818)
-  stroke none
-place tea-liquid shape=tea-liquid at=672,463 size=56x12
+place eyebrow shape=eyebrow at=92,102
+place title shape=title at=90,151
+place caption shape=caption at=92,184
 
-# --- Cup handle ---
-shape cup-handle template=path
-  stroke #c0b8b0
-  stroke-width 3
-  fill none
-  addpoint top at=732,475
-  addpoint mid at=748,490 after=top mode=catmull-rom
-  addpoint bot at=732,505 after=mid mode=catmull-rom
-place cup-handle shape=cup-handle at=0,0
+# --- Desk and grounding -----------------------------------------------------
 
-# --- Steam wisps ---
-shape steam-1 template=path
-  stroke #a09888
+shape desk-surface template=rectangle
+  fill linear(top, bottom, #603c2d, #3a251f)
+
+shape desk-lip template=rectangle
+  fill $desk-edge
+
+shape wood-grain template=path
+  addpoint left at=0,0
+  addpoint a at=80,-5 mode=catmull-rom tension=0.16
+  addpoint b at=170,4 mode=catmull-rom tension=0.16
+  addpoint right at=260,0 mode=catmull-rom tension=0.16
+  stroke #9a6246
   stroke-width 2
+  stroke-linecap round
   fill none
-  opacity 0.2
-  addpoint b at=692,455
-  addpoint m1 at=685,430 after=b mode=catmull-rom
-  addpoint m2 at=698,405 after=m1 mode=catmull-rom
-  addpoint t at=688,380 after=m2 mode=catmull-rom
-place steam-1 shape=steam-1 at=0,0
+  opacity 0.22
 
-shape steam-2 template=path
-  stroke #a09888
-  stroke-width 1.5
-  fill none
-  opacity 0.15
-  addpoint b at=705,455
-  addpoint m1 at=712,425 after=b mode=catmull-rom
-  addpoint m2 at=700,400 after=m1 mode=catmull-rom
-  addpoint t at=710,375 after=m2 mode=catmull-rom
-place steam-2 shape=steam-2 at=0,0
+place desk-surface shape=desk-surface at=0,430 size=960x290
+place desk-lip shape=desk-lip at=0,430 size=960x8
+place grain-a shape=wood-grain at=36,672
+place grain-b shape=wood-grain at=358,694 flip=x
+place grain-c shape=wood-grain at=680,650
 
-shape steam-3 template=path
-  stroke #b0a898
-  stroke-width 1
-  fill none
-  opacity 0.1
-  addpoint b at=698,452
-  addpoint m1 at=690,420 after=b mode=catmull-rom
-  addpoint m2 at=705,392 after=m1 mode=catmull-rom
-  addpoint t at=695,365 after=m2 mode=catmull-rom
-place steam-3 shape=steam-3 at=0,0
+# --- Open book --------------------------------------------------------------
 
-# --- Steam glow ---
-shape steam-glow template=ellipse
-  fill radial(center, 90%, #a09080, transparent)
-  stroke none
-  opacity 0.06
-place steam-glow shape=steam-glow at=670,380 size=80x100
-
-
-# ============================================================
-# WOMAN — upper body, seated
-# ============================================================
-
-# --- Hair back mass (behind head) ---
-shape hair-back template=path
-  fill #1a0a06
-  stroke none
-  addpoint tl at=350,155
-  addpoint top-l at=380,95 after=tl mode=catmull-rom
-  addpoint crown at=465,72 after=top-l mode=catmull-rom
-  addpoint top-r at=550,95 after=crown mode=catmull-rom
-  addpoint tr at=585,155 after=top-r mode=catmull-rom
-  addpoint side-r at=595,250 after=tr mode=catmull-rom tension=0.2
-  addpoint shoulder-r at=600,340 after=side-r mode=catmull-rom tension=0.4
-  addpoint mid-r at=570,275 after=shoulder-r mode=catmull-rom tension=0.4
-  addpoint fh-r at=548,195 after=mid-r mode=catmull-rom tension=0.2
-  addpoint fh-m at=465,178 after=fh-r mode=catmull-rom
-  addpoint fh-l at=382,195 after=fh-m mode=catmull-rom tension=0.2
-  addpoint mid-l at=365,275 after=fh-l mode=catmull-rom tension=0.4
-  addpoint shoulder-l at=340,340 after=mid-l mode=catmull-rom tension=0.4
-  addpoint side-l at=345,250 after=shoulder-l mode=catmull-rom tension=0.2
-  close
-place hair-back shape=hair-back at=0,0
-
-# --- Neck ---
-shape neck template=path
-  fill radial(center, 80%, #d4a878, #b88858)
-  stroke none
-  addpoint tl at=430,345
-  addpoint tr at=500,345
-  addpoint br at=505,390 after=tr mode=catmull-rom tension=0.4
-  addpoint bl at=425,390 after=br mode=catmull-rom tension=0.4
-  close
-place neck shape=neck at=0,0
-
-# --- Neck shadow ---
-shape neck-shd template=ellipse
-  fill radial(center, 70%, #8a5c30, transparent)
-  stroke none
-  opacity 0.25
-place neck-shd shape=neck-shd at=432,360 size=65x35
-
-# --- Upper body / torso ---
-shape torso template=path
-  fill linear(top, bottom, #7a584a, #5a3e30)
-  stroke none
-  addpoint shoulder-l at=350,370
-  addpoint neck-l at=430,345 after=shoulder-l mode=catmull-rom tension=0.2
-  addpoint neck-r at=500,345 after=neck-l mode=catmull-rom tension=0.2
-  addpoint shoulder-r at=590,370 after=neck-r mode=catmull-rom tension=0.2
-  addpoint arm-r at=620,450 after=shoulder-r mode=catmull-rom tension=0.4
-  addpoint side-r at=600,540 after=arm-r mode=catmull-rom tension=0.4
-  addpoint hip-r at=560,580 after=side-r mode=catmull-rom tension=0.4
-  addpoint hip-l at=380,580 after=hip-r mode=catmull-rom tension=0.4
-  addpoint side-l at=340,540 after=hip-l mode=catmull-rom tension=0.4
-  addpoint arm-l at=320,450 after=side-l mode=catmull-rom tension=0.4
-  close
-place torso shape=torso at=0,0
-
-# --- Torso highlight (warm light from left) ---
-shape torso-hi template=path
-  fill radial(center, 80%, #8a6048, transparent)
-  stroke none
-  opacity 0.25
-  addpoint tl at=340,380
-  addpoint tr at=430,370 after=tl mode=catmull-rom tension=0.2
-  addpoint br at=400,530 after=tr mode=catmull-rom tension=0.4
-  addpoint bl at=340,520 after=br mode=catmull-rom tension=0.4
-  close
-place torso-hi shape=torso-hi at=0,0
-
-# --- Neckline / collar ---
-shape neckline template=path
-  stroke #4a2818
-  stroke-width 1.5
-  fill none
-  addpoint l at=415,360
-  addpoint v at=465,400 after=l mode=catmull-rom
-  addpoint r at=515,360 after=v mode=catmull-rom
-place neckline shape=neckline at=0,0
-
-# ============================================================
-# ARMS
-# ============================================================
-
-# --- Left arm (thinner, reaching toward book) ---
-shape arm-l template=path
-  fill radial(center, 80%, #d4a878, #b88858)
-  stroke none
-  addpoint shoulder at=360,395
-  addpoint upper at=355,440 after=shoulder mode=catmull-rom tension=0.2
-  addpoint elbow at=358,480 after=upper mode=catmull-rom tension=0.2
-  addpoint forearm at=385,500 after=elbow mode=catmull-rom tension=0.2
-  addpoint wrist at=420,498 after=forearm mode=catmull-rom tension=0.4
-  addpoint wrist-b at=420,510 after=wrist mode=catmull-rom tension=0.4
-  addpoint forearm-b at=382,512 after=wrist-b mode=catmull-rom tension=0.2
-  addpoint elbow-b at=348,492 after=forearm-b mode=catmull-rom tension=0.2
-  addpoint upper-b at=345,448 after=elbow-b mode=catmull-rom tension=0.2
-  addpoint shoulder-b at=350,405 after=upper-b mode=catmull-rom tension=0.2
-  close
-place arm-l shape=arm-l at=0,0
-
-# --- Right arm (thinner) ---
-shape arm-r template=path
-  fill radial(center, 80%, #c89868, #a87848)
-  stroke none
-  addpoint shoulder at=575,395
-  addpoint upper at=580,440 after=shoulder mode=catmull-rom tension=0.2
-  addpoint elbow at=578,480 after=upper mode=catmull-rom tension=0.2
-  addpoint forearm at=555,500 after=elbow mode=catmull-rom tension=0.2
-  addpoint wrist at=520,498 after=forearm mode=catmull-rom tension=0.4
-  addpoint wrist-b at=520,510 after=wrist mode=catmull-rom tension=0.4
-  addpoint forearm-b at=558,512 after=wrist-b mode=catmull-rom tension=0.2
-  addpoint elbow-b at=588,492 after=forearm-b mode=catmull-rom tension=0.2
-  addpoint upper-b at=590,448 after=elbow-b mode=catmull-rom tension=0.2
-  addpoint shoulder-b at=585,405 after=upper-b mode=catmull-rom tension=0.2
-  close
-place arm-r shape=arm-r at=0,0
-
-# --- Hands resting on book edges ---
-shape hand-l template=path
-  fill #d4a878
-  stroke none
-  addpoint wrist at=418,498
-  addpoint thumb at=415,492 after=wrist mode=catmull-rom tension=0.2
-  addpoint tips at=440,488 after=thumb mode=catmull-rom tension=0.2
-  addpoint palm at=442,505 after=tips mode=catmull-rom tension=0.4
-  addpoint base at=422,510 after=palm mode=catmull-rom tension=0.4
-  close
-place hand-l shape=hand-l at=0,0
-
-shape hand-r template=path
-  fill #c89868
-  stroke none
-  addpoint wrist at=522,498
-  addpoint thumb at=525,492 after=wrist mode=catmull-rom tension=0.2
-  addpoint tips at=500,488 after=thumb mode=catmull-rom tension=0.2
-  addpoint palm at=498,505 after=tips mode=catmull-rom tension=0.4
-  addpoint base at=518,510 after=palm mode=catmull-rom tension=0.4
-  close
-place hand-r shape=hand-r at=0,0
-
-# ============================================================
-# BOOK (on top of hands — she's holding it)
-# ============================================================
-
-shape book-cover template=path
-  fill linear(top, bottom, #7a4230, #5a3020)
-  stroke none
-  addpoint tl at=340,478
-  addpoint bl at=338,530 after=tl mode=catmull-rom tension=0.6
-  addpoint br at=540,530 after=bl
-  addpoint tr at=542,478 after=br mode=catmull-rom tension=0.6
-  addpoint mr at=440,473 after=tr mode=catmull-rom tension=0.8
-  close
-place book-cover shape=book-cover at=0,0
-
-shape book-page-l template=path
-  fill linear(top, bottom, #f5f0e8, #e8e2d8)
-  stroke #c8c0b0
-  stroke-width 1
-  addpoint tl at=0,5
-  addpoint tr at=80,0
-  addpoint br at=82,50 after=tr
-  addpoint bl at=2,45 after=br mode=catmull-rom tension=0.6
-  close
-place book-page-l shape=book-page-l at=345,476 size=92x48 rotation=-2deg
-
-shape book-page-r template=path
-  fill linear(top, bottom, #f0ebe2, #e5dfd5)
-  stroke #c8c0b0
-  stroke-width 1
-  addpoint tl at=0,0
-  addpoint tr at=80,5 after=tl
-  addpoint br at=78,45 after=tr mode=catmull-rom tension=0.6
-  addpoint bl at=-2,50 after=br
-  close
-place book-page-r shape=book-page-r at=442,474 size=92x48 rotation=2deg
-
-shape book-spine template=path
-  stroke #6a5a40
-  stroke-width 2.5
-  fill none
-  addpoint top at=440,474
-  addpoint bot at=438,526 after=top mode=catmull-rom tension=0.6
-place book-spine shape=book-spine at=0,0
-
-shape text-line template=rectangle
-  fill #b8b098
-  stroke none
-  opacity 0.35
-place tl-l1 shape=text-line at=355,486 size=68x2 rotation=-2deg
-place tl-l2 shape=text-line at=357,494 size=62x2 rotation=-2deg
-place tl-l3 shape=text-line at=359,502 size=65x2 rotation=-2deg
-place tl-l4 shape=text-line at=361,510 size=55x2 rotation=-2deg
-place tl-l5 shape=text-line at=363,518 size=60x2 rotation=-2deg
-place tl-r1 shape=text-line at=452,486 size=68x2 rotation=2deg
-place tl-r2 shape=text-line at=450,494 size=62x2 rotation=2deg
-place tl-r3 shape=text-line at=448,502 size=66x2 rotation=2deg
-place tl-r4 shape=text-line at=446,510 size=57x2 rotation=2deg
-place tl-r5 shape=text-line at=444,518 size=62x2 rotation=2deg
-
-# --- Book page highlight (light catching the paper) ---
-shape page-light template=ellipse
-  fill radial(center, 80%, #f8f4ec, transparent)
-  stroke none
-  opacity 0.15
-place page-light-l shape=page-light at=365,490 size=60x30
-place page-light-r shape=page-light at=465,490 size=60x30
-
-# --- Book shadow on table ---
 shape book-shadow template=ellipse
-  fill radial(center, 80%, #1a1008, transparent)
-  stroke none
-  opacity 0.3
-place book-shadow shape=book-shadow at=365,522 size=170x25
+  fill #120d0b
+  opacity 0.38
+  blur 12
 
-# ============================================================
-# HEAD / FACE
-# ============================================================
-
-# --- Face shape (larger) ---
-shape face template=path
-  fill radial(center, 70%, #d8ac7c, #c89868)
-  stroke none
-  addpoint forehead-l at=390,195
-  addpoint forehead-r at=540,195 after=forehead-l mode=catmull-rom
-  addpoint temple-r at=560,240 after=forehead-r mode=catmull-rom
-  addpoint cheek-r at=558,290 after=temple-r mode=catmull-rom tension=0.2
-  addpoint jaw-r at=538,330 after=cheek-r mode=catmull-rom tension=0.2
-  addpoint chin-r at=505,350 after=jaw-r mode=catmull-rom
-  addpoint chin at=465,358 after=chin-r mode=catmull-rom
-  addpoint chin-l at=425,350 after=chin mode=catmull-rom
-  addpoint jaw-l at=395,330 after=chin-l mode=catmull-rom tension=0.2
-  addpoint cheek-l at=378,290 after=jaw-l mode=catmull-rom tension=0.2
-  addpoint temple-l at=375,240 after=cheek-l mode=catmull-rom
+shape left-page-edge template=path
+  addpoint spine-top at=468,495
+  addpoint outer-top at=205,478 mode=controls c1=390,486 c2=282,466
+  addpoint outer-bottom at=158,650 mode=controls c1=178,522 c2=152,605
+  addpoint spine-bottom at=471,634 mode=controls c1=250,652 c2=390,622
   close
-place face shape=face at=0,0
+  fill #a88d69
 
-# --- Face warm light (from left) ---
-shape face-light template=ellipse
-  fill radial(center, 80%, #e8c090, transparent)
-  stroke none
-  opacity 0.15
-place face-light shape=face-light at=370,240 size=100x120
-
-# --- Face shadow (right side) ---
-shape face-shd template=ellipse
-  fill radial(center, 80%, #8a5c30, transparent)
-  stroke none
-  opacity 0.12
-place face-shd shape=face-shd at=510,260 size=70x90
-
-# --- Cheek warmth ---
-shape cheek-warm template=ellipse
-  fill radial(center, 80%, #c07050, transparent)
-  stroke none
-  opacity 0.08
-place cheek-warm-l shape=cheek-warm at=390,285 size=55x40
-place cheek-warm-r shape=cheek-warm at=495,285 size=55x40
-
-# --- Cheekbone highlights ---
-shape cheek-hi template=ellipse
-  fill radial(center, 80%, #debb88, transparent)
-  stroke none
-  opacity 0.1
-place cheek-hi-l shape=cheek-hi at=385,275 size=50x35
-place cheek-hi-r shape=cheek-hi at=490,275 size=50x35
-
-# --- Under-jaw shadow ---
-shape jaw-shadow template=ellipse
-  fill radial(center, 70%, #7a4c28, transparent)
-  stroke none
-  opacity 0.3
-place jaw-shadow shape=jaw-shadow at=420,348 size=100x28
-
-# ============================================================
-# EYES (define once, place with flip)
-# ============================================================
-
-# --- Eye white ---
-shape eye-white template=path
-  fill #eee8e0
-  stroke none
-  addpoint inner at=0,12
-  addpoint top-i at=10,4 after=inner mode=catmull-rom
-  addpoint top at=22,0 after=top-i mode=catmull-rom
-  addpoint top-o at=34,4 after=top mode=catmull-rom
-  addpoint outer at=45,10 after=top-o mode=catmull-rom tension=0.2
-  addpoint bot-o at=34,20 after=outer mode=catmull-rom tension=0.2
-  addpoint bottom at=22,24 after=bot-o mode=catmull-rom
-  addpoint bot-i at=10,20 after=bottom mode=catmull-rom tension=0.2
+shape right-page-edge template=path
+  addpoint spine-top at=468,495
+  addpoint outer-top at=712,482 mode=controls c1=545,484 c2=634,469
+  addpoint outer-bottom at=765,645 mode=controls c1=738,520 c2=762,598
+  addpoint spine-bottom at=471,634 mode=controls c1=650,648 c2=548,624
   close
-place eye-white-l shape=eye-white at=400,258 size=58x30
-place eye-white-r shape=eye-white at=488,258 size=58x30 flip=x
+  fill #a88d69
 
-# --- Iris ---
-shape iris template=ellipse
-  fill radial(center, 70%, #6a9a55, #2a4420)
-  stroke none
-# --- Looking down at the book ---
-place iris-l shape=iris at=417,264 size=26x26
-place iris-r shape=iris at=499,264 size=26x26
-
-# --- Pupil ---
-shape pupil template=ellipse
-  fill #050505
-  stroke none
-place pupil-l shape=pupil at=423,268 size=14x14
-place pupil-r shape=pupil at=505,268 size=14x14
-
-# --- Eye glint ---
-shape eye-glint template=ellipse
-  fill #ffffff
-  stroke none
-  opacity 0.9
-place eye-glint-l shape=eye-glint at=420,263 size=6x6
-place eye-glint-r shape=eye-glint at=502,263 size=6x6
-
-# --- Upper lash line ---
-shape lash-upper template=path
-  stroke #1a0e08
-  stroke-width 2
-  fill none
-  stroke-linecap round
-  addpoint inner at=0,12
-  addpoint mid-i at=10,4 after=inner mode=catmull-rom
-  addpoint top at=22,1 after=mid-i mode=catmull-rom
-  addpoint mid-o at=34,4 after=top mode=catmull-rom tension=0.2
-  addpoint outer at=45,10 after=mid-o mode=catmull-rom tension=0.4
-place lash-upper-l shape=lash-upper at=400,258 size=58x30
-place lash-upper-r shape=lash-upper at=488,258 size=58x30 flip=x
-
-# --- Lower lash hint ---
-shape lash-lower template=path
-  stroke #3a2010
-  stroke-width 0.8
-  fill none
-  opacity 0.4
-  addpoint inner at=5,18
-  addpoint mid at=22,24 after=inner mode=catmull-rom tension=0.2
-  addpoint outer at=40,18 after=mid mode=catmull-rom tension=0.4
-place lash-lower-l shape=lash-lower at=400,258 size=58x30
-place lash-lower-r shape=lash-lower at=488,258 size=58x30 flip=x
-
-# --- Eyelid crease ---
-shape lid-crease template=path
-  stroke #9a6848
-  stroke-width 0.8
-  fill none
-  opacity 0.25
-  addpoint p1 at=0,6
-  addpoint p2 at=22,-3 after=p1 mode=catmull-rom tension=0.2
-  addpoint p3 at=45,6 after=p2 mode=catmull-rom tension=0.2
-place lid-crease-l shape=lid-crease at=400,256 size=58x26
-place lid-crease-r shape=lid-crease at=488,256 size=58x26 flip=x
-
-# ============================================================
-# EYEBROWS (define once, flip)
-# ============================================================
-
-shape brow template=path
-  fill #2a1a0c
-  stroke none
-  addpoint inner at=0,8
-  addpoint peak at=18,0 after=inner mode=catmull-rom
-  addpoint outer at=42,5 after=peak mode=catmull-rom tension=0.2
-  addpoint outer-b at=41,9 after=outer mode=catmull-rom tension=0.4
-  addpoint peak-b at=18,5 after=outer-b mode=catmull-rom
-  addpoint inner-b at=2,12 after=peak-b mode=catmull-rom tension=0.4
+shape left-page template=path
+  addpoint spine-top at=468,486
+  addpoint outer-top at=207,469 mode=controls c1=390,477 c2=285,457
+  addpoint outer-bottom at=164,636 mode=controls c1=180,512 c2=158,594
+  addpoint spine-bottom at=471,624 mode=controls c1=252,638 c2=390,612
+  addpoint spine-close at=468,486 mode=controls c1=476,580 c2=475,520
   close
-place brow-l shape=brow at=398,244 size=55x14
-place brow-r shape=brow at=495,244 size=55x14 flip=x
-
-# --- Brow hair strokes ---
-shape brow-stroke template=path
-  stroke #2a1a0c
+  fill linear(top, bottom, #f7ecd7, #ddd0b4)
+  stroke $paper-edge
   stroke-width 1.2
-  fill none
+
+shape right-page template=path
+  addpoint spine-top at=468,486
+  addpoint outer-top at=710,473 mode=controls c1=548,474 c2=634,460
+  addpoint outer-bottom at=758,633 mode=controls c1=734,514 c2=755,590
+  addpoint spine-bottom at=471,624 mode=controls c1=650,637 c2=550,612
+  addpoint spine-close at=468,486 mode=controls c1=463,578 c2=462,522
+  close
+  fill linear(top, bottom, #f7ecd7, #e3d2b5)
+  stroke $paper-edge
+  stroke-width 1.2
+
+shape page-seam-shadow template=path
+  addpoint top at=468,487
+  addpoint middle at=461,556 mode=controls c1=474,516 c2=461,532
+  addpoint bottom at=471,625 mode=controls c1=461,581 c2=468,607
+  stroke #8f7656
+  stroke-width 7
   stroke-linecap round
-  addpoint s at=0,6
-  addpoint e at=15,0 after=s mode=catmull-rom tension=0.4
+  fill none
+  opacity 0.24
+  blur 3
 
-place bs-l1 shape=brow-stroke at=400,246 size=22x10
-place bs-l2 shape=brow-stroke at=415,244 size=24x10
-place bs-l3 shape=brow-stroke at=430,245 size=20x8
-place bs-r1 shape=brow-stroke at=548,246 size=22x10 flip=x
-place bs-r2 shape=brow-stroke at=533,244 size=24x10 flip=x
-place bs-r3 shape=brow-stroke at=518,245 size=20x8 flip=x
+shape page-seam template=path
+  addpoint top at=468,487
+  addpoint middle at=466,554 mode=controls c1=472,516 c2=465,534
+  addpoint bottom at=471,625 mode=controls c1=465,580 c2=468,607
+  stroke #bba27f
+  stroke-width 2
+  stroke-linecap round
+  fill none
 
-# ============================================================
-# NOSE
-# ============================================================
+shape right-type-line template=path
+  addpoint inner at=0,0
+  addpoint outer at=150,-3 mode=controls c1=48,-1 c2=104,-5
+  stroke $type
+  stroke-width 2
+  stroke-linecap round
+  fill none
+  opacity 0.52
 
-shape nose-bridge template=path
-  fill #b88858
-  stroke none
-  opacity 0.15
-  addpoint top at=457,278
-  addpoint bot at=462,315 after=top mode=catmull-rom tension=0.4
-  addpoint bot-r at=474,318 after=bot mode=catmull-rom tension=0.4
-  addpoint top-r at=470,278 after=bot-r mode=catmull-rom tension=0.4
+shape chapter-mark template=ellipse
+  fill $moon-edge
+  opacity 0.76
+
+shape bookmark template=path
+  addpoint top-left at=497,492
+  addpoint top-right at=514,493
+  addpoint bottom-right at=515,650
+  addpoint notch at=506,641
+  addpoint bottom-left at=497,650
   close
-place nose-bridge shape=nose-bridge at=0,0
+  fill #b65f4c
+  opacity 0.9
 
-shape nose-tip template=ellipse
-  fill radial(center, 70%, #c89868, transparent)
-  stroke none
-  opacity 0.3
-place nose-tip shape=nose-tip at=452,312 size=28x16
+place book-shadow shape=book-shadow at=130,588 size=670x84
+place left-page-edge shape=left-page-edge at=0,0
+place right-page-edge shape=right-page-edge at=0,0
+place bookmark shape=bookmark at=0,0
+place left-page shape=left-page at=0,0
+place right-page shape=right-page at=0,0
+place page-seam-shadow shape=page-seam-shadow at=0,0
+place page-seam shape=page-seam at=0,0
 
-shape nostril template=ellipse
-  fill #7a4828
-  stroke none
-  opacity 0.4
-place nostril-l shape=nostril at=454,320 size=11x6
-place nostril-r shape=nostril at=472,320 size=11x6
+place chapter-dot-left shape=chapter-mark center=278,508 radius=4
+place chapter-dot-right shape=chapter-mark center=647,510 radius=4
 
-shape nose-hi template=ellipse
-  fill radial(center, 70%, #e0c090, transparent)
-  stroke none
+place left-line-1 shape=right-type-line at=248,526 size=178x8
+place left-line-2 shape=right-type-line at=262,546 size=159x8
+place left-line-3 shape=right-type-line at=232,566 size=184x8
+place left-line-4 shape=right-type-line at=270,586 size=140x8
+place left-line-5 shape=right-type-line at=239,606 size=166x8
+
+place right-line-1 shape=right-type-line at=508,526 size=172x8
+place right-line-2 shape=right-type-line at=511,546 size=148x8
+place right-line-3 shape=right-type-line at=515,566 size=180x8
+place right-line-4 shape=right-type-line at=519,586 size=132x8
+place right-line-5 shape=right-type-line at=523,606 size=158x8
+
+# Reading glasses rest partly on the left page.
+shape lens template=ellipse
+  fill none
+  stroke #425b68
+  stroke-width 3.5
+
+shape lens-tint template=ellipse
+  fill #9eb4bd
   opacity 0.12
-place nose-hi shape=nose-hi at=457,292 size=14x35
 
-# ============================================================
-# LIPS (slight smile — she's enjoying the book)
-# ============================================================
-
-shape upper-lip template=path
-  fill #a85048
-  stroke none
-  addpoint l at=445,328
-  addpoint cupid-l at=458,324 after=l mode=catmull-rom tension=0.2
-  addpoint cupid at=468,326 after=cupid-l mode=catmull-rom
-  addpoint cupid-r at=478,324 after=cupid mode=catmull-rom
-  addpoint r at=492,328 after=cupid-r mode=catmull-rom tension=0.2
-  addpoint bot-r at=482,333 after=r mode=catmull-rom tension=0.2
-  addpoint bot at=468,335 after=bot-r mode=catmull-rom
-  addpoint bot-l at=455,333 after=bot mode=catmull-rom tension=0.2
-  close
-place upper-lip shape=upper-lip at=0,0
-
-shape lower-lip template=path
-  fill radial(center, 70%, #c86860, #a85048)
-  stroke none
-  addpoint l at=447,333
-  addpoint top at=468,331 after=l mode=catmull-rom
-  addpoint r at=490,333 after=top mode=catmull-rom
-  addpoint bot-r at=482,340 after=r mode=catmull-rom
-  addpoint bot at=468,343 after=bot-r mode=catmull-rom
-  addpoint bot-l at=455,340 after=bot mode=catmull-rom
-  close
-place lower-lip shape=lower-lip at=0,0
-
-# --- Lip line (slight upward curve = smile) ---
-shape lip-line template=path
-  stroke #6a2828
-  stroke-width 1
+shape glasses-bridge template=path
+  addpoint left at=346,559
+  addpoint middle at=357,552 mode=controls c1=350,554 c2=353,552
+  addpoint right at=369,559 mode=controls c1=361,552 c2=365,554
+  stroke #425b68
+  stroke-width 3.5
+  stroke-linecap round
   fill none
-  addpoint l at=445,330
-  addpoint ml at=455,333 after=l mode=catmull-rom tension=0.2
-  addpoint m at=468,332 after=ml mode=catmull-rom tension=0.2
-  addpoint mr at=480,333 after=m mode=catmull-rom tension=0.2
-  addpoint r at=492,330 after=mr mode=catmull-rom tension=0.2
-place lip-line shape=lip-line at=0,0
 
-# --- Lower lip highlight ---
-shape lip-hi template=ellipse
-  fill radial(center, 70%, #d89080, transparent)
-  stroke none
-  opacity 0.3
-place lip-hi shape=lip-hi at=458,334 size=24x8
+shape glasses-hinge-left template=path
+  addpoint hinge at=283,558
+  addpoint bend at=261,550 mode=controls c1=276,556 c2=268,553
+  addpoint tip at=244,537 mode=controls c1=254,547 c2=248,542
+  stroke #425b68
+  stroke-width 3.5
+  stroke-linecap round
+  fill none
 
-# ============================================================
-# HAIR — front layers with strands
-# ============================================================
+shape glasses-hinge-right template=path
+  addpoint hinge at=432,558
+  addpoint bend at=453,550 mode=controls c1=439,556 c2=446,553
+  addpoint tip at=470,537 mode=controls c1=460,547 c2=466,542
+  stroke #425b68
+  stroke-width 3.5
+  stroke-linecap round
+  fill none
 
-# --- Hair top volume ---
-shape hair-top template=path
-  fill #120a06
-  stroke none
-  addpoint l at=375,195
-  addpoint tl at=388,120 after=l mode=catmull-rom
-  addpoint crown at=465,98 after=tl mode=catmull-rom
-  addpoint tr at=548,120 after=crown mode=catmull-rom
-  addpoint r at=558,195 after=tr mode=catmull-rom
-  addpoint fh-r at=545,200 after=r mode=catmull-rom tension=0.2
-  addpoint fh-m at=465,188 after=fh-r mode=catmull-rom
-  addpoint fh-l at=385,200 after=fh-m mode=catmull-rom tension=0.2
+place lens-tint-left shape=lens-tint at=282,537 size=66x44 rotation=-3deg
+place lens-tint-right shape=lens-tint at=367,537 size=66x44 rotation=3deg
+place lens-left shape=lens at=282,537 size=66x44 rotation=-3deg
+place lens-right shape=lens at=367,537 size=66x44 rotation=3deg
+place glasses-bridge shape=glasses-bridge at=0,0
+place glasses-hinge-left shape=glasses-hinge-left at=0,0
+place glasses-hinge-right shape=glasses-hinge-right at=0,0
+
+# --- Tea service ------------------------------------------------------------
+
+shape cup-cast-shadow template=ellipse
+  fill #100c0a
+  opacity 0.42
+  blur 10
+
+shape saucer template=ellipse
+  fill linear(top, bottom, #f6efe4, #c7baa9)
+  stroke #fffaf2
+  stroke-width 2
+
+shape saucer-well template=ellipse
+  fill #c9bcaa
+  opacity 0.72
+
+shape handle-shadow template=path
+  addpoint top at=750,496
+  addpoint outer-top at=826,505 mode=controls c1=782,488 c2=816,491
+  addpoint outer-bottom at=824,574 mode=controls c1=843,527 c2=842,561
+  addpoint bottom at=744,598 mode=controls c1=802,594 c2=775,608
+  stroke #10151a
+  stroke-width 28
+  stroke-linecap round
+  fill none
+  opacity 0.36
+
+shape handle template=path
+  addpoint top at=750,496
+  addpoint outer-top at=822,506 mode=controls c1=781,492 c2=812,495
+  addpoint outer-bottom at=820,570 mode=controls c1=837,529 c2=836,558
+  addpoint bottom at=744,594 mode=controls c1=799,590 c2=774,602
+  stroke $ceramic
+  stroke-width 18
+  stroke-linecap round
+  fill none
+
+shape handle-highlight template=path
+  addpoint top at=760,502
+  addpoint outer at=816,515 mode=controls c1=783,500 c2=806,502
+  stroke #fffdf7
+  stroke-width 4
+  stroke-linecap round
+  fill none
+  opacity 0.72
+
+shape cup-body template=path
+  addpoint top-left at=620,487 mode=controls c1=623,575 c2=618,520
+  addpoint top-right at=756,487
+  addpoint lower-right at=742,595 mode=controls c1=756,530 c2=753,576
+  addpoint base-right at=729,617 mode=controls c1=740,608 c2=736,616
+  addpoint base-left at=647,617 mode=controls c1=708,623 c2=668,623
+  addpoint lower-left at=634,595 mode=controls c1=640,615 c2=636,606
   close
-place hair-top shape=hair-top at=0,0
-
-# --- Hair sheen ---
-shape hair-sheen template=ellipse
-  fill radial(center, 80%, #2a1a10, transparent)
-  stroke none
-  opacity 0.5
-place hair-sheen shape=hair-sheen at=415,115 size=110x45
-
-# --- Hair strands ---
-shape hs template=path
-  stroke #1e1210
+  fill linear(top, bottom, #f6efe4, #cfc2b0)
+  stroke #fffaf2
   stroke-width 1.5
-  fill none
-  opacity 0.4
-  addpoint a at=0,0
-  addpoint b at=-2,30 after=a mode=catmull-rom tension=0.2
-  addpoint c at=-5,60 after=b mode=catmull-rom tension=0.4
+  stroke-linejoin round
 
-place hs-1 shape=hs at=410,108 size=10x85
-place hs-2 shape=hs at=430,102 size=10x88
-place hs-3 shape=hs at=450,98 size=10x92
-place hs-4 shape=hs at=470,100 size=10x90
-place hs-5 shape=hs at=490,104 size=10x86
-place hs-6 shape=hs at=510,110 size=10x80
-
-# --- Side hair (flowing down) ---
-shape hair-side-l template=path
-  fill #120a06
-  stroke none
-  addpoint top at=380,200
-  addpoint mid at=360,268 after=top mode=catmull-rom
-  addpoint bot at=348,340 after=mid mode=catmull-rom tension=0.2
-  addpoint tip at=340,390 after=bot mode=catmull-rom tension=0.4
-  addpoint inner-b at=355,370 after=tip mode=catmull-rom tension=0.4
-  addpoint inner-m at=372,280 after=inner-b mode=catmull-rom tension=0.2
-  addpoint inner-t at=388,212 after=inner-m mode=catmull-rom
+shape cup-body-shade template=path
+  addpoint top at=724,494
+  addpoint right at=741,533 mode=controls c1=735,505 c2=742,518
+  addpoint bottom at=714,608 mode=controls c1=742,568 c2=732,598
+  addpoint left at=691,612 mode=controls c1=708,611 c2=699,612
+  addpoint top-close at=724,494 mode=controls c1=710,579 c2=716,527
   close
-place hair-side-l shape=hair-side-l at=0,0
+  fill #b9aa97
+  opacity 0.22
 
-shape hair-side-r template=path
-  fill #120a06
-  stroke none
-  addpoint top at=555,200
-  addpoint mid at=575,268 after=top mode=catmull-rom
-  addpoint bot at=588,340 after=mid mode=catmull-rom tension=0.2
-  addpoint tip at=595,390 after=bot mode=catmull-rom tension=0.4
-  addpoint inner-b at=580,370 after=tip mode=catmull-rom tension=0.4
-  addpoint inner-m at=565,280 after=inner-b mode=catmull-rom tension=0.2
-  addpoint inner-t at=548,212 after=inner-m mode=catmull-rom
-  close
-place hair-side-r shape=hair-side-r at=0,0
+shape cup-rim template=ellipse
+  fill $ceramic
+  stroke #fffdf8
+  stroke-width 2
 
-# --- Side strand details ---
-shape side-strand template=path
-  stroke #120a06
-  stroke-width 1.5
+shape tea-liquid template=ellipse
+  fill radial(center, 76%, #d58445, #a95829)
+
+shape tea-glint template=path
+  addpoint left at=645,489
+  addpoint middle at=677,485 mode=controls c1=654,486 c2=667,485
+  addpoint right at=706,488 mode=controls c1=687,485 c2=699,486
+  stroke #f6bd79
+  stroke-width 3
+  stroke-linecap round
   fill none
-  opacity 0.5
-  addpoint a at=0,0
-  addpoint b at=-5,40 after=a mode=catmull-rom tension=0.2
-  addpoint c at=-10,80 after=b mode=catmull-rom tension=0.4
+  opacity 0.74
 
-place ss-l1 shape=side-strand at=375,210 size=14x110
-place ss-l2 shape=side-strand at=368,225 size=12x100
-place ss-l3 shape=side-strand at=362,240 size=10x90
-place ss-r1 shape=side-strand at=560,210 size=14x110 flip=x
-place ss-r2 shape=side-strand at=568,225 size=12x100 flip=x
-place ss-r3 shape=side-strand at=574,240 size=10x90 flip=x
-
-# --- Baby hairs at hairline ---
-shape baby-hair template=path
-  stroke #120a06
-  stroke-width 0.8
+shape front-rim-highlight template=path
+  addpoint left at=620,488
+  addpoint middle at=688,503 mode=controls c1=644,499 c2=666,503
+  addpoint right at=756,488 mode=controls c1=710,503 c2=734,499
+  stroke #fffdf8
+  stroke-width 3
+  stroke-linecap round
   fill none
-  opacity 0.2
-  addpoint a at=0,0
-  addpoint b at=1,8 after=a mode=catmull-rom tension=0.4
 
-place bh-1 shape=baby-hair at=410,205 size=5x12
-place bh-2 shape=baby-hair at=430,200 size=5x10
-place bh-3 shape=baby-hair at=500,200 size=5x10 flip=x
-place bh-4 shape=baby-hair at=520,205 size=5x12 flip=x
+shape cup-highlight template=path
+  addpoint top at=643,515
+  addpoint middle at=638,554 mode=controls c1=639,527 c2=637,542
+  addpoint bottom at=650,583 mode=controls c1=638,567 c2=642,578
+  stroke #fffdf8
+  stroke-width 7
+  stroke-linecap round
+  fill none
+  opacity 0.54
 
-# ============================================================
-# AMBIENT SCENE DETAILS
-# ============================================================
+shape base-highlight template=path
+  addpoint left at=655,622
+  addpoint right at=711,622 mode=controls c1=674,625 c2=693,625
+  stroke #fffaf2
+  stroke-width 3
+  stroke-linecap round
+  fill none
+  opacity 0.72
 
-# --- Warm light pool on table (from lamp or window) ---
-shape table-light template=ellipse
-  fill radial(center, 85%, #6a4830, transparent)
-  stroke none
-  opacity 0.2
-place table-light shape=table-light at=300,510 size=400x60
+shape steam template=path
+  addpoint bottom at=0,76
+  addpoint low at=-7,53 mode=controls c1=-5,68 c2=-10,61
+  addpoint middle at=6,32 mode=controls c1=-3,45 c2=7,42
+  addpoint top at=0,0 mode=controls c1=4,20 c2=-4,12
+  stroke $muted
+  stroke-width 4
+  stroke-linecap round
+  fill none
+  opacity 0.46
 
-# --- Shadow of woman on table ---
-shape woman-shadow template=ellipse
-  fill radial(center, 80%, #1a0e08, transparent)
-  stroke none
-  opacity 0.15
-place woman-shadow shape=woman-shadow at=380,530 size=200x40
+place cup-shadow shape=cup-cast-shadow at=584,601 size=285x68
+place saucer shape=saucer at=585,598 size=270x62
+place saucer-well shape=saucer-well at=631,608 size=178x30
+place handle-shadow shape=handle-shadow at=0,0
+place handle shape=handle at=0,0
+place handle-highlight shape=handle-highlight at=0,0
+place cup-body shape=cup-body at=0,0
+place cup-body-shade shape=cup-body-shade at=0,0
+place cup-rim shape=cup-rim at=612,474 size=152x34
+place tea shape=tea-liquid at=621,480 size=134x22
+place tea-glint shape=tea-glint at=0,0
+place front-rim-highlight shape=front-rim-highlight at=0,0
+place cup-highlight shape=cup-highlight at=0,0
+place base-highlight shape=base-highlight at=0,0
+place steam-left shape=steam at=653,374
+place steam-middle shape=steam at=691,356 flip=x
+place steam-right shape=steam at=725,386
 
-# --- Warm lamp glow (upper left, implied light source) ---
-shape lamp-glow template=ellipse
-  fill radial(center, 85%, #8a6838, transparent)
-  stroke none
-  opacity 0.1
-place lamp-glow shape=lamp-glow at=180,80 size=300x250
+# A teaspoon, deliberately constructed as a recognizable utensil.
+shape spoon-shadow template=path
+  addpoint bowl at=855,614
+  addpoint handle at=900,544 mode=controls c1=873,593 c2=891,561
+  stroke #140f0d
+  stroke-width 12
+  stroke-linecap round
+  fill none
+  opacity 0.34
+  blur 4
 
-# --- Light pool on book pages ---
-shape book-light template=ellipse
-  fill radial(center, 80%, #f0e8d8, transparent)
-  stroke none
-  opacity 0.05
-place book-light shape=book-light at=380,480 size=140x60
+shape spoon-handle template=path
+  addpoint bowl at=852,608
+  addpoint middle at=875,575 mode=controls c1=859,598 c2=867,587
+  addpoint end at=900,536 mode=controls c1=883,562 c2=893,546
+  stroke $metal
+  stroke-width 7
+  stroke-linecap round
+  fill none
 
-# --- Subtle vignette ---
-shape vignette-tl template=ellipse
-  fill radial(center, 90%, transparent, #0a0608)
-  stroke none
-  opacity 0.4
-place vignette-tl shape=vignette-tl at=0,0 size=500x400
+shape spoon-bowl template=ellipse
+  fill linear(left, right, #6d818e, #d8e1e5)
+  stroke #dce6ea
+  stroke-width 2
 
-shape vignette-br template=ellipse
-  fill radial(center, 90%, transparent, #0a0608)
-  stroke none
-  opacity 0.4
-place vignette-br shape=vignette-br at=500,400 size=500x400
+shape spoon-glint template=path
+  addpoint left at=838,603
+  addpoint right at=861,596 mode=controls c1=846,601 c2=854,598
+  stroke #f2f7f8
+  stroke-width 2
+  stroke-linecap round
+  fill none
+  opacity 0.72
+
+place spoon-shadow shape=spoon-shadow at=0,0
+place spoon-handle shape=spoon-handle at=0,0
+place spoon-bowl shape=spoon-bowl at=827,592 size=44x28 rotation=-18deg
+place spoon-glint shape=spoon-glint at=0,0

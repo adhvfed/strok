@@ -1,8 +1,7 @@
 //! Inspection / query layer (C6 / E3.2).
 //!
 //! Builds on the 9-anchor + bbox machinery (`resolve::element_bboxes`,
-//! `measure`) to answer the agent-observability questions from CLAUDE.md's
-//! "Agent Inspection Model":
+//! `measure`) to support agent-friendly spatial inspection:
 //!
 //! - **structural snapshot** at three detail levels
 //!   ([`Detail::Full`]/[`Detail::Structural`]/[`Detail::Summary`]) — what's in

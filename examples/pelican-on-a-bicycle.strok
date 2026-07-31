@@ -1,3 +1,5 @@
+# A deliberately improbable commute, built from paths, transforms, and layers.
+# Render: strok -f examples/pelican-on-a-bicycle.strok render --out examples/pelican-on-a-bicycle.png
 documentsize 800x600
 
 shape sky template=rectangle

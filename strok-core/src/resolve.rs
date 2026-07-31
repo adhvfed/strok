@@ -56,9 +56,9 @@ pub fn resolve_scene(scene: &Scene) -> String {
 
 /// Resolve the scene to SVG with an **annotate overlay** (C6 / E3.2): each
 /// placed element / group gets a small ID label drawn at its bbox top-left so an
-/// agent can map what it sees in the rendered PNG to the names it can reference
-/// (CLAUDE.md "Annotated" inspection mode). The underlying geometry is the exact
-/// same `d` the renderer produces — only an overlay `<g>` is appended.
+/// agent can map what it sees in the rendered PNG to the names it can reference.
+/// The underlying geometry is the exact same `d` the renderer produces — only
+/// an overlay `<g>` is appended.
 pub fn resolve_scene_annotated(scene: &Scene) -> String {
     let base = resolve_scene(scene);
     let boxes = element_bboxes(scene);
@@ -110,6 +110,159 @@ pub fn resolve_scene_annotated(scene: &Scene) -> String {
         }
         None => base,
     }
+}
+
+/// Add a non-destructive, high-contrast geometry outline above an already
+/// resolved SVG scene.
+///
+/// `ids=None` outlines every named placed path/text element. `ids=Some(..)`
+/// limits the overlay to those exact resolved IDs and errors when any requested
+/// ID is absent from this render (important for `render --node`).
+///
+/// The overlay is built from the resolved SVG rather than from shape templates,
+/// so placement sizing, flips, rotations, group transforms, clips, masks, and
+/// text layout are identical to the normal render beneath it. Two copies provide
+/// a black halo and white foreground stroke; `vector-effect` keeps the diagnostic
+/// line readable when a region is rendered at high resolution.
+pub fn add_outline_overlay(svg: &str, ids: Option<&[String]>) -> Result<String> {
+    let open_end = svg.find('>').ok_or_else(|| {
+        StrokError::InvalidOperation("cannot outline malformed resolved SVG".to_string())
+    })?;
+    let close_start = svg.rfind("</svg>").ok_or_else(|| {
+        StrokError::InvalidOperation("cannot outline malformed resolved SVG".to_string())
+    })?;
+    if close_start <= open_end {
+        return Err(StrokError::InvalidOperation(
+            "cannot outline malformed resolved SVG".to_string(),
+        ));
+    }
+
+    if let Some(requested) = ids {
+        if requested.is_empty() {
+            return Err(StrokError::InvalidOperation(
+                "outline selection is empty; omit the value to outline all placed geometry"
+                    .to_string(),
+            ));
+        }
+        for id in requested {
+            if !resolved_graphic_id_exists(svg, id) {
+                return Err(StrokError::InvalidOperation(format!(
+                    "outline id '{id}' is not a placed element in this render"
+                )));
+            }
+        }
+    }
+
+    let inner = &svg[open_end + 1..close_start];
+    let halo_prefix = "strok-outline-halo-";
+    let ink_prefix = "strok-outline-ink-";
+    let halo = prefix_svg_references(inner, halo_prefix);
+    let ink = prefix_svg_references(inner, ink_prefix);
+
+    let mut overlay = String::new();
+    overlay.push_str("  <style>\n");
+    overlay.push_str(&outline_css(
+        "strok-outline-halo",
+        halo_prefix,
+        ids,
+        "#000000",
+        5.0,
+    ));
+    overlay.push_str(&outline_css(
+        "strok-outline-ink",
+        ink_prefix,
+        ids,
+        "#ffffff",
+        2.0,
+    ));
+    overlay.push_str("  </style>\n");
+    overlay.push_str(
+        "  <g id=\"strok-outline-overlay\" pointer-events=\"none\" aria-hidden=\"true\">\n",
+    );
+    overlay.push_str("    <g id=\"strok-outline-halo\">\n");
+    overlay.push_str(&halo);
+    overlay.push_str("    </g>\n");
+    overlay.push_str("    <g id=\"strok-outline-ink\">\n");
+    overlay.push_str(&ink);
+    overlay.push_str("    </g>\n");
+    overlay.push_str("  </g>\n");
+
+    let mut out = String::with_capacity(svg.len() + overlay.len() + inner.len() * 2);
+    out.push_str(&svg[..close_start]);
+    out.push_str(&overlay);
+    out.push_str(&svg[close_start..]);
+    Ok(out)
+}
+
+fn resolved_graphic_id_exists(svg: &str, id: &str) -> bool {
+    ["path", "text"]
+        .iter()
+        .any(|tag| svg.contains(&format!("<{tag} id=\"{id}\"")))
+}
+
+fn prefix_svg_references(svg: &str, prefix: &str) -> String {
+    svg.replace("id=\"", &format!("id=\"{prefix}"))
+        .replace("url(#", &format!("url(#{prefix}"))
+        .replace("href=\"#", &format!("href=\"#{prefix}"))
+}
+
+fn outline_css(
+    wrapper_id: &str,
+    id_prefix: &str,
+    ids: Option<&[String]>,
+    color: &str,
+    width: f64,
+) -> String {
+    const GRAPHICS: &[&str] = &[
+        "path", "text", "rect", "circle", "ellipse", "line", "polyline", "polygon", "image",
+    ];
+    let hidden = GRAPHICS
+        .iter()
+        .map(|tag| format!("#{wrapper_id} {tag}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let definitions = GRAPHICS
+        .iter()
+        .map(|tag| format!("#{wrapper_id} defs {tag}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let mut css = format!(
+        "    {hidden} {{ display: none; }}\n\
+         \x20   {definitions} {{ display: inline; }}\n\
+         \x20   #{wrapper_id} g {{ opacity: 1 !important; filter: none !important; }}\n"
+    );
+
+    let selector = match ids {
+        None => format!("#{wrapper_id} path[id], #{wrapper_id} text[id]"),
+        Some(ids) => ids
+            .iter()
+            .map(|id| {
+                format!(
+                    "#{wrapper_id} [id=\"{}{}\"]",
+                    id_prefix,
+                    escape_css_string(id)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(", "),
+    };
+    css.push_str(&format!(
+        "    {selector} {{ display: inline !important; fill: none !important; \
+         stroke: {color} !important; stroke-width: {} !important; \
+         stroke-dasharray: none !important; stroke-linecap: round !important; \
+         stroke-linejoin: round !important; opacity: 1 !important; \
+         filter: none !important; vector-effect: non-scaling-stroke; }}\n",
+        types::fmt_num(width)
+    ));
+    css
+}
+
+fn escape_css_string(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "\\a ")
+        .replace('\r', "\\d ")
 }
 
 fn annotate_collect(
@@ -1472,7 +1625,8 @@ pub fn validate_references(scene: &Scene) -> Result<()> {
 
 /// The anchor-target names a place depends on for positioning (target name +
 /// what it's used as). Parametric `on=` (a shape.point, not a place bbox) and
-/// `textpath=` (text-on-path, unaffected — CLAUDE.md) are intentionally excluded.
+/// `textpath=` (text-on-path, unaffected by placement order) are intentionally
+/// excluded.
 fn place_targets(p: &Place) -> Vec<(&str, &'static str)> {
     let mut out: Vec<(&str, &'static str)> = Vec::new();
     if let PlacePosition::RelativeTo { target, .. } = &p.position {

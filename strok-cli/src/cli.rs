@@ -11,6 +11,10 @@ Strøk — vector design for the agent era.
 A .strok file is plain text. You can edit it directly or build it with CLI commands.
 Coordinates: origin is top-left, +x is right, +y is down.
 
+AGENTS: Run `strok agent-intro` before authoring. It explains effort levels,
+tool discovery, and the render-review loop. Then load the relevant visual guide
+with `strok guide illustration|icon|logo|diagram`.
+
 QUICK START — build a simple scene with CLI commands:
 
   strok new face.strok 200x200
@@ -240,15 +244,32 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
+    /// Learn how an agent should plan, build, and visually verify Strøk work
+    #[command(long_about = "\
+Print the agent operating guide before authoring with Strøk.
+
+It explains:
+  - how to choose sketch, production, or showcase effort
+  - how to discover DSL primitives and standard-library shapes
+  - how to build from composition to detail
+  - how to use full-frame and region renders, audit, inspect, query, and diff
+  - when technically valid output is not visually finished
+
+Start here, then load the guide for the requested output:
+  strok agent-intro
+  strok guide illustration")]
+    AgentIntro,
+
     /// Learn the visual workflow for a target output
     #[command(long_about = "\
 Print an agent-oriented authoring guide. The guide prioritizes final visual
 quality over minimizing commands and includes style decisions, geometry traps,
 and the render/review loop.
 
-Topics: icon, logo, diagram
+Topics: illustration, icon, logo, diagram
 
 Examples:
+  strok guide illustration
   strok guide icon
   strok guide logo
   strok guide diagram")]
@@ -478,6 +499,8 @@ Examples:
   strok -f logo.strok render --out preview.png
   strok -f logo.strok render --out preview.png --bg '#ffffff'
   strok -f logo.strok render --node badge --out badge.png
+  strok -f logo.strok render --outline --out geometry.png
+  strok -f logo.strok render --outline badge,rim --region 20,20,80,80 --width 1200 --out detail.png
   strok -f logo.strok render --out icon.png --scheme dark
   strok -f logo.strok render --width 1200 --out hires.png
 
@@ -503,10 +526,18 @@ document aspect ratio. Supply both to stretch intentionally.")]
         /// Render only this named node (place name)
         #[arg(long)]
         node: Option<String>,
+        /// Render a document-space crop as x,y,w,h. Use this to inspect focal
+        /// objects and edge quality without enlarging the entire composition.
+        #[arg(long, value_name = "x,y,w,h")]
+        region: Option<String>,
         /// Overlay element IDs on the canvas (annotate mode, E3.2) — maps the
         /// rendered pixels back to the names an agent can reference.
         #[arg(long)]
         annotate: bool,
+        /// Overlay resolved geometry above the normal scene. Use the bare flag
+        /// for every placed element, or pass comma-separated placed IDs.
+        #[arg(long, value_name = "id1,id2")]
+        outline: Option<Option<String>>,
         /// Colorscheme to resolve tokens with. Omit to render base + every scheme (suffixed).
         #[arg(long)]
         scheme: Option<String>,

@@ -135,6 +135,7 @@ fn golden_png_perceptual() {
                 height: Some(size),
                 background: Some("#ffffff".into()),
                 color: Some("#000000".into()),
+                region: None,
             };
             let png =
                 render_to_png(&doc, &opts).unwrap_or_else(|e| panic!("render {stem}@{size}: {e}"));
@@ -205,6 +206,7 @@ fn golden_contact_sheet() {
                 height: Some(64),
                 background: None,
                 color: Some("#000000".into()),
+                region: None,
             };
             let png = render_to_png(&doc, &opts)
                 .unwrap_or_else(|e| panic!("render {stem} for sheet: {e}"));

@@ -29,6 +29,7 @@ fn assert_close(svg: &str, w: f64, h: f64) {
         height: Some(h as u32),
         background: Some("#ffffff".into()),
         color: Some("#000000".into()),
+        region: None,
     };
     let (imported_svg, iw, ih) = import_resolved(svg);
     assert_eq!((iw, ih), (w, h), "document size recovered");

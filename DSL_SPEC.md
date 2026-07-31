@@ -690,7 +690,7 @@ parts (head vs. torso vs. limbs, table top vs. legs, …), because only shapes
 The library's source of truth lives in the repo at `std/<module>.strok` —
 ordinary `.strok` files (parsed by the same parser as everything else) baked
 into the binary via `include_str!` in `strok-core/src/stdlib.rs`. See
-`examples/std-sampler.strok` for every shape placed on a grid.
+`examples/std-library.strok` for a curated sampler of the embedded modules.
 
 ---
 

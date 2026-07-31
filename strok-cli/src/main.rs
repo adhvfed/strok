@@ -17,7 +17,10 @@ use strok_core::resolve;
 use strok_core::scene::Scene;
 use strok_core::stdlib;
 use strok_core::token_sync;
-use strok_render::{contact_sheet, render_to_png, RenderOptions, SheetOptions, SheetTile};
+use strok_render::{
+    contact_sheet, render_to_png, target_dimensions, RenderOptions, RenderRegion, SheetOptions,
+    SheetTile,
+};
 
 use cli::{Cli, Command, LibAction};
 
@@ -46,6 +49,10 @@ fn run() -> Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
+        Command::AgentIntro => {
+            print!("{AGENT_INTRO}");
+        }
+
         Command::Guide { topic } => {
             print!("{}", guide_text(topic)?);
         }
@@ -146,6 +153,7 @@ fn run() -> Result<()> {
                 | Command::TokenSync { .. }
                 | Command::Import { .. }
                 | Command::Lib { .. }
+                | Command::AgentIntro
                 | Command::Guide { .. }
                 | Command::McpServer => {
                     unreachable!()
@@ -481,17 +489,22 @@ fn run() -> Result<()> {
                     bg,
                     color,
                     node,
+                    region,
                     annotate,
+                    outline,
                     scheme,
                 } => {
                     let doc = Document::load(path)
                         .with_context(|| format!("failed to load '{}'", file))?;
 
+                    let region = region.as_deref().map(parse_region_spec).transpose()?;
+                    let outline = parse_outline_selection(outline)?;
                     let opts = RenderOptions {
                         width: *width,
                         height: *height,
                         background: bg.clone(),
                         color: color.clone(),
+                        region,
                     };
 
                     match doc.scene.as_ref() {
@@ -500,6 +513,11 @@ fn run() -> Result<()> {
                             if *annotate {
                                 anyhow::bail!(
                                     "--annotate requires a v3 scene document (no scene found)"
+                                );
+                            }
+                            if outline.is_some() {
+                                anyhow::bail!(
+                                    "--outline requires a v3 scene document (no scene found)"
                                 );
                             }
                             let png = render_to_png(&doc, &opts)?;
@@ -519,8 +537,14 @@ fn run() -> Result<()> {
 
                             if render_all {
                                 let out_path = out.as_ref().unwrap();
-                                let base =
-                                    render_one(scene, None, node.as_deref(), &opts, *annotate)?;
+                                let base = render_one(
+                                    scene,
+                                    None,
+                                    node.as_deref(),
+                                    &opts,
+                                    *annotate,
+                                    outline.as_ref(),
+                                )?;
                                 std::fs::write(out_path, &base)?;
                                 eprintln!("rendered to {}", out_path);
                                 for sc in &scene.palette.schemes {
@@ -530,6 +554,7 @@ fn run() -> Result<()> {
                                         node.as_deref(),
                                         &opts,
                                         *annotate,
+                                        outline.as_ref(),
                                     )?;
                                     let p = suffixed(out_path, &sc.name);
                                     std::fs::write(&p, &png)?;
@@ -542,6 +567,7 @@ fn run() -> Result<()> {
                                     node.as_deref(),
                                     &opts,
                                     *annotate,
+                                    outline.as_ref(),
                                 )?;
                                 match out {
                                     Some(p) => {
@@ -710,6 +736,7 @@ fn run() -> Result<()> {
                                 height: *height,
                                 background: None,
                                 color: color.clone(),
+                                region: None,
                             };
                             let png_bytes = render_to_png(&doc, &opts)?;
                             match out {
@@ -796,17 +823,62 @@ fn parse_box_spec(spec: &str) -> Result<(f64, f64, f64, f64)> {
     Ok((nums[0], nums[1], nums[2], nums[3]))
 }
 
+fn parse_region_spec(spec: &str) -> Result<RenderRegion> {
+    let (x, y, width, height) = parse_box_spec(spec)
+        .map_err(|_| anyhow::anyhow!("--region expects x,y,w,h, got '{}'", spec))?;
+    Ok(RenderRegion {
+        x,
+        y,
+        width,
+        height,
+    })
+}
+
+#[derive(Debug)]
+enum OutlineSelection {
+    All,
+    Only(Vec<String>),
+}
+
+fn parse_outline_selection(arg: &Option<Option<String>>) -> Result<Option<OutlineSelection>> {
+    match arg {
+        None => Ok(None),
+        Some(None) => Ok(Some(OutlineSelection::All)),
+        Some(Some(spec)) => {
+            let mut ids = Vec::new();
+            for raw in spec.split(',') {
+                let id = raw.trim();
+                if id.is_empty() {
+                    anyhow::bail!(
+                        "--outline expects comma-separated placed IDs; omit the value to outline all"
+                    );
+                }
+                if !ids.iter().any(|existing| existing == id) {
+                    ids.push(id.to_string());
+                }
+            }
+            if ids.is_empty() {
+                anyhow::bail!(
+                    "--outline expects comma-separated placed IDs; omit the value to outline all"
+                );
+            }
+            Ok(Some(OutlineSelection::Only(ids)))
+        }
+    }
+}
+
 fn render_one(
     scene: &Scene,
     scheme: Option<&str>,
     node: Option<&str>,
     opts: &RenderOptions,
     annotate: bool,
+    outline: Option<&OutlineSelection>,
 ) -> Result<Vec<u8>> {
     let resolved = resolve::apply_scheme(scene, scheme)?;
     let (dw, dh) = (resolved.document_size.w, resolved.document_size.h);
 
-    let svg = match node {
+    let mut svg = match node {
         Some(n) => {
             if resolved.find_node(n).is_some() {
                 resolve::resolve_scene_single_node(&resolved, n)
@@ -824,9 +896,19 @@ fn render_one(
         None if annotate => resolve::resolve_scene_annotated(&resolved),
         None => resolve::resolve_scene(&resolved),
     };
+    if let Some(selection) = outline {
+        let ids = match selection {
+            OutlineSelection::All => None,
+            OutlineSelection::Only(ids) => Some(ids.as_slice()),
+        };
+        svg = resolve::add_outline_overlay(&svg, ids)?;
+    }
 
-    let w = opts.width.unwrap_or(dw as u32);
-    let h = opts.height.unwrap_or(dh as u32);
+    let (source_w, source_h) = opts
+        .region
+        .map(|region| (region.width, region.height))
+        .unwrap_or((dw, dh));
+    let (w, h) = target_dimensions(source_w, source_h, opts.width, opts.height);
     Ok(strok_render::render_svg_string(&svg, w, h, dw, dh, opts)?)
 }
 
@@ -989,6 +1071,7 @@ fn diff_since(
         height,
         background: Some("#ffffff".into()),
         color: color.map(|s| s.to_string()),
+        region: None,
     };
     let before_png = render_to_png(&before_doc, &opts)?;
     let after_png = render_to_png(&doc, &opts)?;
@@ -1060,15 +1143,126 @@ fn build_icon_profile(size: &str, profile: IconProfile) -> String {
 /// Agent-facing visual guidance shared by CLI and MCP.
 pub fn guide_text(topic: &str) -> Result<&'static str> {
     match topic {
+        "illustration" | "illustrations" => Ok(ILLUSTRATION_GUIDE),
         "icon" | "icons" => Ok(ICON_GUIDE),
         "logo" | "logos" => Ok(LOGO_GUIDE),
-        "diagram" | "diagrams" | "illustration" | "illustrations" => Ok(DIAGRAM_GUIDE),
+        "diagram" | "diagrams" => Ok(DIAGRAM_GUIDE),
         other => anyhow::bail!(
-            "unknown guide topic '{}' (known: icon, logo, diagram)",
+            "unknown guide topic '{}' (known: illustration, icon, logo, diagram)",
             other
         ),
     }
 }
+
+const AGENT_INTRO: &str = r#"AGENT INTRO — use Strøk as a visual construction and feedback system
+
+Strøk source being valid is only the beginning. The deliverable is the rendered
+image at its real viewing size. Plan enough visual review for the requested bar.
+
+1. CHOOSE THE EFFORT LEVEL
+
+   sketch       Establish composition and feasibility. Use 1–2 render/review
+                passes. Appropriate for alternatives, wireframes, and discussion.
+
+   production   Deliver a polished asset. Use at least 3–5 focused passes:
+                composition, geometry, color/depth, detail, and final-size review.
+
+   showcase     Demonstrate Strøk's expressive ceiling. Expect 6+ focused passes,
+                full-frame AND region renders, deliberate materials and lighting,
+                and a final cleanup pass at 2×. Words such as intricate, beautiful,
+                editorial, hero, or complex imply this level unless scope says otherwise.
+
+   Do not lower the effort because fewer commands are convenient. If time or tools
+   cannot support the requested level, say what remains visually unverified.
+
+2. DISCOVER BEFORE INVENTING
+
+   strok --help                         complete DSL and primitive reference
+   strok <command> --help               exact syntax and examples
+   strok guide illustration             output-specific construction workflow
+   strok lib list                       built-in modules and shape meanings
+   strok lib search <meaning>           find reusable shapes by intent
+   strok lib show <module>              read canonical Strøk source
+
+3. BUILD LARGE TO SMALL
+
+   Write a one-sentence visual brief. Block the frame into foreground, subject,
+   and background. Establish silhouettes and overlap before texture or decoration.
+   Give each visual role a named shape: body, rim, inner rim, handle, cast shadow,
+   highlight. Reuse real geometry; do not force unrelated roles into one path.
+
+4. RUN THE VISUAL FEEDBACK LOOP
+
+   strok -f art.strok render --out /tmp/full.png
+   strok -f art.strok render --region x,y,w,h --width 1200 --out /tmp/detail.png
+   strok -f art.strok render --outline body,rim,handle --region x,y,w,h --width 1200 --out /tmp/geometry.png
+   strok -f art.strok render --annotate --out /tmp/names.png
+   strok -f art.strok inspect --detail structural
+   strok -f art.strok audit
+   strok -f art.strok query --box x,y,w,h
+
+   Inspect the actual images after every meaningful pass. For a complex scene,
+   separately review every focal object and high-contrast edge. A thumbnail or
+   contact sheet proves composition, not craft. Use `--outline` when silhouettes,
+   joins, or attachment geometry are difficult to read through paint and shading.
+   Change one concern at a time, render again, and use
+   `strok diff before.png after.png` when the effect is subtle.
+
+5. FINISH WITH A VISUAL, NOT SYNTACTIC, GATE
+
+   Check silhouette, joins, tangencies, clipping, z-order, perspective, material
+   cues, repeated stroke/radius language, and details at delivery size. Run audit,
+   but treat it as evidence rather than taste. Technically valid source is not a
+   visual quality gate. The work is done only when the rendered result meets the
+   requested effort level without explanation.
+"#;
+
+pub fn agent_intro_text() -> &'static str {
+    AGENT_INTRO
+}
+
+const ILLUSTRATION_GUIDE: &str = r#"ILLUSTRATION WORKFLOW — build depth, material, and believable objects
+
+1. Write the visual brief and choose sketch, production, or showcase effort
+   (`strok agent-intro`). For showcase work, budget separate passes for:
+   composition → silhouettes → depth/light → object construction → detail → cleanup.
+
+2. Compose with large masses first. Use overlap, scale, value, and atmospheric
+   contrast to establish foreground/midground/background. Render before adding
+   small detail; a weak thumbnail cannot be rescued by more paths.
+
+3. Construct objects from semantic parts. A cup is body + back handle + rim +
+   liquid + inner rim + base shadow + highlight. An open book has a shared spine,
+   curved page silhouettes, page thickness, and text lines that follow each page.
+   Name those roles so `render --node`, `query`, and annotated renders stay useful.
+
+4. Match geometry to the material:
+   - hard manufactured edges: arcs, true round-corners, or explicit Bézier controls
+   - organic contours: consecutive Catmull-Rom runs, with intentional sharp tips
+   - vessels and fabric: explicit cubic controls for tuned silhouettes
+   - thin details: round caps, consistent width, and enough contrast to survive size
+   Remember: a point mode controls the segment arriving at that point.
+
+5. Create depth deliberately. Put cast shadows behind objects, contact shadows at
+   their bases, occluded parts before foreground parts, and highlights last. Avoid
+   a dark outline around every shape; edges can come from value and overlap.
+
+6. Review focal objects independently:
+     strok -f scene.strok render --region 450,340,220,180 --width 1200 --out /tmp/focal.png
+     strok -f scene.strok render --annotate --out /tmp/names.png
+     strok -f scene.strok audit
+   At showcase level, inspect the full frame at delivery size and at least 2×,
+   plus a high-resolution region for every focal object. Iterate on one visible
+   problem at a time. A montage is not enough.
+
+7. Illustration quality gates:
+   - every attachment meets cleanly (handles, stems, limbs, leaves)
+   - no accidental flat bottoms, cusps, gaps, or doubled edges
+   - repeated perspective lines converge consistently
+   - highlights and shadows agree on the light direction
+   - details support the focal hierarchy instead of filling space
+   - the image reads without a caption explaining malformed objects
+"#;
 
 const ICON_GUIDE: &str = r#"ICON WORKFLOW — optimize recognition and family coherence, not command count
 
@@ -1286,6 +1480,7 @@ fn batch_render(args: BatchArgs) -> Result<()> {
                     height: Some(size),
                     background: bg.map(|s| s.to_string()),
                     color: color.map(|s| s.to_string()),
+                    region: None,
                 };
                 let png_bytes = render_to_png(&doc, &opts)?;
                 let name = if single_size {
@@ -1315,6 +1510,7 @@ fn batch_render(args: BatchArgs) -> Result<()> {
                 height: Some(sheet_size),
                 background: None,
                 color: color.map(|s| s.to_string()),
+                region: None,
             };
             sheet_tiles.push(SheetTile {
                 name: stem.clone(),

@@ -34,6 +34,14 @@ fn cleanup(path: &Path) {
     let _ = fs::remove_file(path);
 }
 
+fn png_dimensions(bytes: &[u8]) -> (u32, u32) {
+    assert!(bytes.len() >= 24, "PNG is too short");
+    (
+        u32::from_be_bytes(bytes[16..20].try_into().unwrap()),
+        u32::from_be_bytes(bytes[20..24].try_into().unwrap()),
+    )
+}
+
 #[test]
 fn inspect_svg_accepts_shape_name() {
     let strok_path = write_temp_strok(concat!(
@@ -195,7 +203,7 @@ fn icon_profiles_make_visual_grammar_explicit() {
 
 #[test]
 fn guide_teaches_visual_decisions_and_review_loop() {
-    for topic in ["icon", "logo", "diagram"] {
+    for topic in ["illustration", "icon", "logo", "diagram"] {
         let output = Command::new(env!("CARGO_BIN_EXE_strok"))
             .args(["guide", topic])
             .output()
@@ -216,6 +224,86 @@ fn guide_teaches_visual_decisions_and_review_loop() {
             "{stdout}"
         );
     }
+}
+
+#[test]
+fn agent_intro_sets_effort_and_requires_focused_visual_review() {
+    let output = Command::new(env!("CARGO_BIN_EXE_strok"))
+        .arg("agent-intro")
+        .output()
+        .expect("run strok agent-intro");
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    for expected in [
+        "CHOOSE THE EFFORT LEVEL",
+        "sketch",
+        "production",
+        "showcase",
+        "render --region",
+        "render --outline",
+        "thumbnail or",
+        "Technically valid",
+    ] {
+        assert!(stdout.contains(expected), "missing '{expected}':\n{stdout}");
+    }
+}
+
+#[test]
+fn root_help_directs_agents_to_the_intro() {
+    let output = Command::new(env!("CARGO_BIN_EXE_strok"))
+        .arg("--help")
+        .output()
+        .expect("run strok --help");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(
+        stdout.contains("AGENTS: Run `strok agent-intro`"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn render_region_outputs_a_high_resolution_document_crop() {
+    let strok_path = write_temp_strok(concat!(
+        "documentsize 200x100\n",
+        "shape left template=rectangle\n",
+        "  fill #ff0000\n",
+        "shape right template=rectangle\n",
+        "  fill #0000ff\n",
+        "place left shape=left at=0,0 size=100x100\n",
+        "place right shape=right at=100,0 size=100x100\n",
+    ));
+    let png_path = temp_path("png");
+    let output = Command::new(env!("CARGO_BIN_EXE_strok"))
+        .args([
+            "-f",
+            strok_path.to_str().unwrap(),
+            "render",
+            "--region",
+            "100,0,100,100",
+            "--width",
+            "600",
+            "--out",
+            png_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("run strok render --region");
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let png = fs::read(&png_path).unwrap();
+    cleanup(&strok_path);
+    cleanup(&png_path);
+    assert_eq!(png_dimensions(&png), (600, 600));
 }
 
 #[test]
@@ -806,6 +894,86 @@ fn render_annotate_overlays_ids() {
         String::from_utf8_lossy(&o.stderr)
     );
     assert!(produced, "annotate render produced a non-empty PNG");
+}
+
+#[test]
+fn render_outline_accepts_bare_and_selected_forms() {
+    let p = three_box_doc();
+    let f = p.to_str().unwrap();
+    let all_png = temp_path("png");
+    let selected_png = temp_path("png");
+
+    let all = run(&[
+        "-f",
+        f,
+        "render",
+        "--outline",
+        "--out",
+        all_png.to_str().unwrap(),
+    ]);
+    assert!(
+        all.status.success(),
+        "bare outline render failed: {}",
+        String::from_utf8_lossy(&all.stderr)
+    );
+
+    let selected = run(&[
+        "-f",
+        f,
+        "render",
+        "--outline",
+        "card,inner",
+        "--region",
+        "0,0,100,100",
+        "--width",
+        "400",
+        "--out",
+        selected_png.to_str().unwrap(),
+    ]);
+    assert!(
+        selected.status.success(),
+        "selected outline render failed: {}",
+        String::from_utf8_lossy(&selected.stderr)
+    );
+
+    let all_bytes = fs::read(&all_png).expect("read all-outline PNG");
+    let selected_bytes = fs::read(&selected_png).expect("read selected-outline PNG");
+    assert!(!all_bytes.is_empty());
+    assert!(!selected_bytes.is_empty());
+    assert_eq!(png_dimensions(&selected_bytes), (400, 400));
+    assert_ne!(
+        all_bytes, selected_bytes,
+        "selected outline + region must produce a distinct render"
+    );
+
+    cleanup(&p);
+    cleanup(&all_png);
+    cleanup(&selected_png);
+}
+
+#[test]
+fn render_outline_rejects_unknown_and_empty_ids() {
+    let p = three_box_doc();
+    let f = p.to_str().unwrap();
+
+    let unknown = run(&["-f", f, "render", "--outline", "ghost"]);
+    assert!(!unknown.status.success());
+    let unknown_err = String::from_utf8_lossy(&unknown.stderr);
+    assert!(
+        unknown_err.contains("outline id 'ghost'") && unknown_err.contains("not a placed element"),
+        "{unknown_err}"
+    );
+
+    let empty = run(&["-f", f, "render", "--outline="]);
+    assert!(!empty.status.success());
+    let empty_err = String::from_utf8_lossy(&empty.stderr);
+    assert!(
+        empty_err.contains("--outline expects comma-separated placed IDs"),
+        "{empty_err}"
+    );
+    assert!(!empty_err.contains("panicked"), "{empty_err}");
+
+    cleanup(&p);
 }
 
 // --- C7: visual diff (E3.3) -------------------------------------------------

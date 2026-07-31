@@ -24,7 +24,7 @@
 use std::io::{BufRead, Write};
 
 use strok_core::json::Json;
-use strok_render::{render_svg_string, RenderOptions};
+use strok_render::{render_svg_string, target_dimensions, RenderOptions, RenderRegion};
 
 const PROTOCOL_VERSION: &str = "2024-11-05";
 const SERVER_NAME: &str = "strok";
@@ -169,11 +169,20 @@ fn tool(name: &str, description: &str, input_schema: Json) -> Json {
 pub fn tool_catalog() -> Vec<Json> {
     vec![
         tool(
+            "agent_intro",
+            "Read this first. Explains Strøk effort levels, tool discovery, \
+             construction order, visual feedback loops, and completion gates.",
+            schema(vec![], &[]),
+        ),
+        tool(
             "guide",
-            "Read the visual-quality workflow before authoring an icon, logo, or diagram. \
+            "Read the visual-quality workflow before authoring an illustration, icon, logo, or diagram. \
              Covers style selection, geometry/text traps, and required review sizes.",
             schema(
-                vec![("topic", str_prop("Guide topic: icon, logo, or diagram."))],
+                vec![(
+                    "topic",
+                    str_prop("Guide topic: illustration, icon, logo, or diagram."),
+                )],
                 &["topic"],
             ),
         ),
@@ -206,12 +215,25 @@ pub fn tool_catalog() -> Vec<Json> {
         tool(
             "render",
             "Render a document to PNG, returned as an inline image. \
-             Optional width/height/color (for currentColor) and bg.",
+             Optional width/height/color (for currentColor), bg, region crop, \
+             and resolved-geometry outline inspection.",
             schema(
                 vec![
                     source_prop(),
                     ("width", int_prop("Render width in pixels.")),
                     ("height", int_prop("Render height in pixels.")),
+                    (
+                        "region",
+                        str_prop(
+                            "Optional document-space crop as x,y,w,h for high-resolution detail review.",
+                        ),
+                    ),
+                    (
+                        "outline",
+                        str_prop(
+                            "Optional geometry overlay: '*' for all placed elements, or comma-separated placed IDs.",
+                        ),
+                    ),
                     (
                         "color",
                         str_prop("Concrete color substituted for currentColor."),
@@ -309,6 +331,7 @@ fn handle_tools_call(msg: &Json) -> Result<Json, (i64, String)> {
 /// Run a tool, returning MCP content blocks. Reuses the core/render code paths.
 fn dispatch_tool(name: &str, args: &Json) -> Result<Vec<Json>, String> {
     match name {
+        "agent_intro" => Ok(vec![text_content(crate::agent_intro_text())]),
         "guide" => {
             let topic = require_str(args, "topic")?;
             let guide = crate::guide_text(&topic).map_err(|e| e.to_string())?;
@@ -386,15 +409,52 @@ fn exec_line(source: &str, line: &str) -> Result<String, String> {
 fn render_source(args: &Json, source: &str) -> Result<Vec<u8>, String> {
     let scene = parse_source(source)?;
     let (dw, dh) = (scene.document_size.w, scene.document_size.h);
-    let svg = strok_core::resolve::resolve_scene(&scene);
+    let mut svg = strok_core::resolve::resolve_scene(&scene);
+    if let Some(spec) = arg_str(args, "outline") {
+        let spec = spec.trim();
+        let ids = if spec == "*" {
+            None
+        } else {
+            let mut ids = Vec::new();
+            for raw in spec.split(',') {
+                let id = raw.trim();
+                if id.is_empty() {
+                    return Err("outline expects '*' or comma-separated placed IDs".to_string());
+                }
+                if !ids.iter().any(|existing| existing == id) {
+                    ids.push(id.to_string());
+                }
+            }
+            if ids.is_empty() {
+                return Err("outline expects '*' or comma-separated placed IDs".to_string());
+            }
+            Some(ids)
+        };
+        svg = strok_core::resolve::add_outline_overlay(&svg, ids.as_deref())
+            .map_err(|e| e.to_string())?;
+    }
+    let region = arg_str(args, "region")
+        .map(|spec| {
+            parse_box_spec(&spec).map(|(x, y, width, height)| RenderRegion {
+                x,
+                y,
+                width,
+                height,
+            })
+        })
+        .transpose()?;
     let opts = RenderOptions {
         width: arg_int(args, "width"),
         height: arg_int(args, "height"),
         background: arg_str(args, "bg"),
         color: arg_str(args, "color"),
+        region,
     };
-    let w = opts.width.unwrap_or(dw as u32);
-    let h = opts.height.unwrap_or(dh as u32);
+    let (source_w, source_h) = opts
+        .region
+        .map(|region| (region.width, region.height))
+        .unwrap_or((dw, dh));
+    let (w, h) = target_dimensions(source_w, source_h, opts.width, opts.height);
     render_svg_string(&svg, w, h, dw, dh, &opts).map_err(|e| e.to_string())
 }
 
@@ -830,6 +890,33 @@ mod tests {
     }
 
     #[test]
+    fn render_supports_selected_outline_inspection() {
+        let src = "documentsize 24x24\\nshape b template=rectangle\\n  fill #000000\\nplace tile shape=b at=2,2 size=20x20";
+        let req = format!(
+            r#"{{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{{"name":"render","arguments":{{"source":"{}","outline":"tile","region":"0,0,24,24","width":96}}}}}}"#,
+            src
+        );
+        let resp = call(&req).unwrap();
+        let result = field(&resp, "result").unwrap();
+        assert_eq!(field(result, "isError"), Some(&Json::Bool(false)));
+
+        let unknown_req = format!(
+            r#"{{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{{"name":"render","arguments":{{"source":"{}","outline":"ghost"}}}}}}"#,
+            src
+        );
+        let unknown = call(&unknown_req).unwrap();
+        let unknown_result = field(&unknown, "result").unwrap();
+        assert_eq!(field(unknown_result, "isError"), Some(&Json::Bool(true)));
+        let content = field(unknown_result, "content").unwrap();
+        if let Json::Array(items) = content {
+            let text = field_str(&items[0], "text").unwrap();
+            assert!(text.contains("outline id 'ghost'"), "{text}");
+        } else {
+            panic!("expected error content");
+        }
+    }
+
+    #[test]
     fn inspect_returns_structural_json() {
         let src = "documentsize 24x24\\nshape b template=rectangle\\n  fill #000000\\nplace b shape=b at=0,0 size=24x24";
         let req = format!(
@@ -856,6 +943,22 @@ mod tests {
             let text = field_str(&items[0], "text").unwrap();
             assert!(text.contains("Choose a visual grammar"));
             assert!(text.contains("smallest shipping size"));
+        } else {
+            panic!("expected content");
+        }
+    }
+
+    #[test]
+    fn agent_intro_teaches_effort_and_focused_review() {
+        let req = r#"{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"agent_intro","arguments":{}}}"#;
+        let resp = call(req).unwrap();
+        let content = field(field(&resp, "result").unwrap(), "content").unwrap();
+        if let Json::Array(items) = content {
+            let text = field_str(&items[0], "text").unwrap();
+            assert!(text.contains("CHOOSE THE EFFORT LEVEL"));
+            assert!(text.contains("render --region"));
+            assert!(text.contains("render --outline"));
+            assert!(text.contains("showcase"));
         } else {
             panic!("expected content");
         }
