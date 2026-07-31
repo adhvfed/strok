@@ -837,9 +837,15 @@ Events with no manual refresh.
   mid-edit.
 - **Edit shape** opens a focused geometry view for any local named shape. Drag
   anchors or explicit Bézier handles, use the midpoint `+` controls to split a
-  segment, and remove a selected point with the button or Delete/Backspace.
-  Edits are immediately written back to the watched `.strok` file; imported
-  module shapes remain read-only and are not offered in the editor.
+  segment, and remove the selected anchor or retract the selected control with
+  the button or Delete/Backspace. Alignment guides snap anchors to peer x/y
+  coordinates. Bézier handles are linked across their anchor by default:
+  Alt-drag moves only one handle, Shift-drag constrains its direction to 45°,
+  and Shift+C creates or resets the selected anchor's pair to equal, opposite
+  handles. Undo/redo buttons and Cmd/Ctrl+Z / Cmd/Ctrl+Shift+Z restore browser
+  edits (up to 100 steps); editing the file externally clears incompatible
+  history. Edits are immediately written back to the watched `.strok` file;
+  imported module shapes remain read-only and are not offered in the editor.
 - The preview backdrop cycles checkerboard → white → black to judge
   transparency and both polarities.
 - `--port` defaults to an ephemeral free port; the chosen URL is printed on

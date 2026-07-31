@@ -42,9 +42,23 @@ struct State {
 struct Shared {
     state: Mutex<State>,
     /// Serialize browser edits so two tabs cannot interleave file rewrites.
-    edit: Mutex<()>,
+    edit: Mutex<EditHistory>,
     changed: Condvar,
 }
+
+#[derive(Clone)]
+struct FileEdit {
+    before: Vec<u8>,
+    after: Vec<u8>,
+}
+
+#[derive(Default)]
+struct EditHistory {
+    undo: Vec<FileEdit>,
+    redo: Vec<FileEdit>,
+}
+
+const HISTORY_LIMIT: usize = 100;
 
 struct Snapshot {
     svg: String,
@@ -71,7 +85,7 @@ pub fn run(file: &Path, port: u16, scheme: Option<&str>, open_browser: bool) -> 
             editor,
             error,
         }),
-        edit: Mutex::new(()),
+        edit: Mutex::new(EditHistory::default()),
         changed: Condvar::new(),
     });
 
@@ -125,6 +139,12 @@ fn watch_loop(shared: &Shared, file: &Path, scheme: Option<&str>) {
         // the previous state and catch the real contents on the next poll.
         if contents.is_none() {
             continue;
+        }
+        if let Some(current) = contents.as_deref() {
+            let mut history = shared.edit.lock().unwrap();
+            if !history.matches(current) {
+                history.clear();
+            }
         }
         last_contents = contents;
         let result = render_snapshot(file, scheme);
@@ -218,6 +238,10 @@ fn editor_json(scene: &strok_core::scene::Scene) -> Json {
                         "controlsEditable",
                         Json::Bool(control_source(shape, &point.name).is_some()),
                     ),
+                    (
+                        "canSymmetrize",
+                        Json::Bool(can_symmetrize(shape, &data, index)),
+                    ),
                     ("c1", pair_json(c1)),
                     ("c2", pair_json(c2)),
                     ("tension", tension.map(Json::num).unwrap_or(Json::Null)),
@@ -275,6 +299,17 @@ fn previous_point(data: &PathData, index: usize) -> Option<&strok_core::path_poi
     }
 }
 
+fn previous_neighbor(data: &PathData, index: usize) -> Option<&strok_core::path_point::NamedPoint> {
+    let (begin, end) = contour_bounds(data, index)?;
+    if index > begin {
+        data.points.get(index - 1)
+    } else if data.closed {
+        data.points.get(end.saturating_sub(1))
+    } else {
+        None
+    }
+}
+
 fn contour_bounds(data: &PathData, index: usize) -> Option<(usize, usize)> {
     if index >= data.points.len() {
         return None;
@@ -308,6 +343,45 @@ fn control_source(shape: &Shape, point: &str) -> Option<usize> {
             } if name == point
         )
     })
+}
+
+fn addpoint_source(shape: &Shape, point: &str) -> Option<usize> {
+    shape.operations.iter().rposition(
+        |operation| matches!(operation, Operation::AddPoint { name, .. } if name == point),
+    )
+}
+
+fn can_symmetrize(shape: &Shape, data: &PathData, index: usize) -> bool {
+    let Some(point) = data.points.get(index) else {
+        return false;
+    };
+    let Some(next) = next_point(data, index) else {
+        return false;
+    };
+    previous_neighbor(data, index).is_some()
+        && addpoint_source(shape, &point.name).is_some()
+        && addpoint_source(shape, &next.name).is_some()
+}
+
+impl EditHistory {
+    fn matches(&self, current: &[u8]) -> bool {
+        self.undo.last().is_some_and(|edit| edit.after == current)
+            || self.redo.last().is_some_and(|edit| edit.before == current)
+            || (self.undo.is_empty() && self.redo.is_empty())
+    }
+
+    fn clear(&mut self) {
+        self.undo.clear();
+        self.redo.clear();
+    }
+
+    fn push(&mut self, edit: FileEdit) {
+        self.undo.push(edit);
+        if self.undo.len() > HISTORY_LIMIT {
+            self.undo.remove(0);
+        }
+        self.redo.clear();
+    }
 }
 
 /// Positioned parse diagnostics render their own caret snippets; everything
@@ -359,10 +433,15 @@ fn handle_client(
     match (method, path) {
         ("GET", "/") => respond(&mut stream, "text/html; charset=utf-8", PREVIEW_HTML),
         ("GET", "/state.json") => {
+            let history = shared.edit.lock().unwrap();
+            let can_undo = !history.undo.is_empty();
+            let can_redo = !history.redo.is_empty();
             let state = shared.state.lock().unwrap();
             let body = Json::obj([
                 ("version", Json::num(state.version as f64)),
                 ("file", Json::str(display_name)),
+                ("canUndo", Json::Bool(can_undo)),
+                ("canRedo", Json::Bool(can_redo)),
                 (
                     "svg",
                     match &state.svg {
@@ -386,10 +465,19 @@ fn handle_client(
         ("POST", "/edit") => {
             let body = String::from_utf8_lossy(&request_body);
             let fields = parse_form(&body);
-            let _guard = shared.edit.lock().unwrap();
-            match apply_edit(file, &fields)
-                .and_then(|()| render_snapshot(file, scheme).map_err(anyhow::Error::msg))
-            {
+            let mut history = shared.edit.lock().unwrap();
+            if let Ok(current) = std::fs::read(file) {
+                if !history.matches(&current) {
+                    history.clear();
+                }
+            }
+            let result = match fields.get("action").map(String::as_str) {
+                Some("undo") => restore_history(file, &mut history, true),
+                Some("redo") => restore_history(file, &mut history, false),
+                _ => apply_edit(file, &fields).map(|edit| history.push(edit)),
+            }
+            .and_then(|()| render_snapshot(file, scheme).map_err(anyhow::Error::msg));
+            match result {
                 Ok(snapshot) => {
                     let mut state = shared.state.lock().unwrap();
                     state.version += 1;
@@ -491,9 +579,11 @@ fn coordinate(fields: &HashMap<String, String>, name: &str) -> Result<f64> {
     Ok(value)
 }
 
-fn apply_edit(file: &Path, fields: &HashMap<String, String>) -> Result<()> {
+fn apply_edit(file: &Path, fields: &HashMap<String, String>) -> Result<FileEdit> {
     let action = required(fields, "action")?;
     let shape_name = required(fields, "shape")?;
+    let original =
+        std::fs::read(file).with_context(|| format!("failed to read '{}'", file.display()))?;
     let loaded =
         Document::load(file).with_context(|| format!("failed to load '{}'", file.display()))?;
     let mut scene = loaded
@@ -536,6 +626,27 @@ fn apply_edit(file: &Path, fields: &HashMap<String, String>) -> Result<()> {
             let x = coordinate(fields, "x")?;
             let y = coordinate(fields, "y")?;
             move_control(shape, &before, point_name, handle, (x, y))?;
+            if let Some(opposite_point) = fields.get("oppositePoint") {
+                let opposite_handle = required(fields, "oppositeHandle")?;
+                let opposite_x = coordinate(fields, "oppositeX")?;
+                let opposite_y = coordinate(fields, "oppositeY")?;
+                move_control(
+                    shape,
+                    &before,
+                    opposite_point,
+                    opposite_handle,
+                    (opposite_x, opposite_y),
+                )?;
+            }
+        }
+        "retract-control" => {
+            let point_name = required(fields, "point")?;
+            let handle = required(fields, "handle")?;
+            retract_control(shape, &before, point_name, handle)?;
+        }
+        "symmetric" => {
+            let point_name = required(fields, "point")?;
+            symmetrize_anchor(shape, &before, point_name)?;
         }
         "add" => {
             let after = required(fields, "after")?;
@@ -551,7 +662,47 @@ fn apply_edit(file: &Path, fields: &HashMap<String, String>) -> Result<()> {
     let output = dsl_emit::emit_scene(&scene);
     dsl_parse::parse_file_with_path(&output, file)
         .with_context(|| "edited document failed to parse; the file was not changed")?;
-    std::fs::write(file, output).with_context(|| format!("failed to save '{}'", file.display()))?;
+    let after = output.into_bytes();
+    std::fs::write(file, &after).with_context(|| format!("failed to save '{}'", file.display()))?;
+    Ok(FileEdit {
+        before: original,
+        after,
+    })
+}
+
+fn restore_history(file: &Path, history: &mut EditHistory, undo: bool) -> Result<()> {
+    let current =
+        std::fs::read(file).with_context(|| format!("failed to read '{}'", file.display()))?;
+    let edit = if undo {
+        history.undo.last()
+    } else {
+        history.redo.last()
+    }
+    .ok_or_else(|| {
+        anyhow::anyhow!(if undo {
+            "nothing to undo"
+        } else {
+            "nothing to redo"
+        })
+    })?;
+    let expected = if undo { &edit.after } else { &edit.before };
+    if current != *expected {
+        history.clear();
+        anyhow::bail!("the file changed outside the shape editor; undo history was cleared");
+    }
+    let target = if undo { &edit.before } else { &edit.after };
+    let source =
+        String::from_utf8(target.clone()).with_context(|| "history entry is not valid UTF-8")?;
+    dsl_parse::parse_file_with_path(&source, file)
+        .with_context(|| "history entry failed to parse; the file was not changed")?;
+    std::fs::write(file, target).with_context(|| format!("failed to save '{}'", file.display()))?;
+    if undo {
+        let edit = history.undo.pop().unwrap();
+        history.redo.push(edit);
+    } else {
+        let edit = history.redo.pop().unwrap();
+        history.undo.push(edit);
+    }
     Ok(())
 }
 
@@ -689,6 +840,147 @@ fn move_control(
             *control_c2 = Some(value);
         }
     }
+    Ok(())
+}
+
+fn retract_control(
+    shape: &mut Shape,
+    data: &PathData,
+    point_name: &str,
+    handle: &str,
+) -> Result<()> {
+    let point_index = data
+        .points
+        .iter()
+        .position(|point| point.name == point_name)
+        .ok_or_else(|| anyhow::anyhow!("point '{}' no longer exists", point_name))?;
+    let target = match handle {
+        "c1" => {
+            let previous = previous_neighbor(data, point_index)
+                .ok_or_else(|| anyhow::anyhow!("point '{}' has no incoming control", point_name))?;
+            (previous.x, previous.y)
+        }
+        "c2" => {
+            let point = &data.points[point_index];
+            (point.x, point.y)
+        }
+        _ => anyhow::bail!("handle must be 'c1' or 'c2'"),
+    };
+    move_control(shape, data, point_name, handle, target)
+}
+
+fn symmetrize_anchor(shape: &mut Shape, data: &PathData, point_name: &str) -> Result<()> {
+    let index = data
+        .points
+        .iter()
+        .position(|point| point.name == point_name)
+        .ok_or_else(|| anyhow::anyhow!("point '{}' no longer exists", point_name))?;
+    let point = &data.points[index];
+    let previous = previous_neighbor(data, index)
+        .ok_or_else(|| anyhow::anyhow!("the endpoint '{}' cannot have two controls", point_name))?;
+    let next = next_point(data, index)
+        .ok_or_else(|| anyhow::anyhow!("the endpoint '{}' cannot have two controls", point_name))?;
+    if addpoint_source(shape, &point.name).is_none() || addpoint_source(shape, &next.name).is_none()
+    {
+        anyhow::bail!(
+            "the controls at '{}' are generated and cannot be edited directly",
+            point_name
+        );
+    }
+
+    let dx = next.x - previous.x;
+    let dy = next.y - previous.y;
+    let length = dx.hypot(dy);
+    let direction = if length > 1e-9 {
+        (dx / length, dy / length)
+    } else {
+        (1.0, 0.0)
+    };
+    let incoming_span = (point.x - previous.x).hypot(point.y - previous.y);
+    let outgoing_span = (next.x - point.x).hypot(next.y - point.y);
+    let handle_length = (incoming_span.min(outgoing_span) / 3.0).max(1e-3);
+    let incoming = (
+        point.x - direction.0 * handle_length,
+        point.y - direction.1 * handle_length,
+    );
+    let outgoing = (
+        point.x + direction.0 * handle_length,
+        point.y + direction.1 * handle_length,
+    );
+
+    let incoming_c1 = explicit_controls(data, index)
+        .map(|controls| controls.0)
+        .unwrap_or((
+            previous.x + (point.x - previous.x) / 3.0,
+            previous.y + (point.y - previous.y) / 3.0,
+        ));
+    let outgoing_c2 = data
+        .points
+        .iter()
+        .position(|candidate| candidate.name == next.name)
+        .and_then(|next_index| explicit_controls(data, next_index))
+        .map(|controls| controls.1)
+        .unwrap_or((
+            next.x - (next.x - point.x) / 3.0,
+            next.y - (next.y - point.y) / 3.0,
+        ));
+
+    materialize_controls(shape, &point.name, incoming_c1, incoming)?;
+    materialize_controls(shape, &next.name, outgoing, outgoing_c2)?;
+    Ok(())
+}
+
+fn explicit_controls(data: &PathData, index: usize) -> Option<((f64, f64), (f64, f64))> {
+    let point = data.points.get(index)?;
+    match point.mode {
+        CurveMode::Controls { c1, c2 } => Some((c1, c2)),
+        CurveMode::ControlsRelative { c1, c2 } => {
+            let previous = previous_point(data, index)?;
+            Some((
+                (previous.x + c1.0, previous.y + c1.1),
+                (point.x + c2.0, point.y + c2.1),
+            ))
+        }
+        CurveMode::Sharp | CurveMode::CatmullRom(_) | CurveMode::Arc { .. } => None,
+    }
+}
+
+fn materialize_controls(
+    shape: &mut Shape,
+    point_name: &str,
+    c1: (f64, f64),
+    c2: (f64, f64),
+) -> Result<()> {
+    let source = addpoint_source(shape, point_name).ok_or_else(|| {
+        anyhow::anyhow!(
+            "point '{}' is generated and cannot own controls",
+            point_name
+        )
+    })?;
+    let Operation::AddPoint {
+        mode,
+        tension,
+        arc_rx,
+        arc_ry,
+        arc_sweep,
+        arc_large,
+        arc_bulge,
+        control_c1,
+        control_c2,
+        ..
+    } = &mut shape.operations[source]
+    else {
+        unreachable!();
+    };
+    *mode = Some(PointMode::Controls);
+    *tension = None;
+    *arc_rx = None;
+    *arc_ry = None;
+    *arc_sweep = None;
+    *arc_large = None;
+    *arc_bulge = None;
+    *control_c1 = Some(c1);
+    *control_c2 = Some(c2);
     Ok(())
 }
 
@@ -941,6 +1233,7 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
   #point-name { color: var(--text); font-weight: 650; }
   #point-coords { display: block; color: var(--dim); font: 12px/1.5 ui-monospace, monospace; margin: 3px 0 13px; }
   .inspector-actions { display: flex; gap: 7px; }
+  .inspector-actions + .inspector-actions { margin-top: 7px; }
   .hint { color: var(--quiet); font-size: 12px; margin-top: 22px; }
   kbd { border: 1px solid var(--edge); border-bottom-color: var(--quiet); border-radius: 4px; padding: 0 4px; font: inherit; color: var(--dim); }
   main { flex: 1; min-width: 0; min-height: 0; padding: 20px; }
@@ -966,9 +1259,12 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
   #toast.show { opacity: 1; translate: -50% 0; }
   .edit-path { fill: rgba(123, 213, 180, .13); stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
   .control-line { stroke: var(--control); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: .7; }
+  .tangent-guide { stroke: var(--control); stroke-width: 1; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; opacity: .55; pointer-events: none; }
+  .snap-guide { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; opacity: .8; pointer-events: none; }
   .anchor { fill: var(--panel); stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; cursor: grab; }
   .anchor:hover, .anchor.selected { fill: var(--accent); stroke: var(--panel); }
   .control { fill: var(--control); stroke: var(--panel); stroke-width: 1.5; vector-effect: non-scaling-stroke; cursor: grab; }
+  .control:hover, .control.selected { fill: var(--panel); stroke: var(--control); stroke-width: 2.5; }
   .control.readonly { opacity: .45; cursor: not-allowed; }
   .insert { fill: var(--raised); stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; cursor: pointer; }
   .insert-mark { stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; pointer-events: none; }
@@ -994,6 +1290,8 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
   <span class="spacer"></span>
   <span class="meta" id="save-status" role="status"></span>
   <span class="meta" id="rev"></span>
+  <button id="undobtn" title="Undo shape edit (Ctrl/⌘Z)" disabled>Undo</button>
+  <button id="redobtn" title="Redo shape edit (Ctrl/⌘ Shift+Z)" disabled>Redo</button>
   <button id="editbtn" class="primary" disabled>Edit shape</button>
   <button id="bgbtn" title="Cycle checkerboard, white, and black backdrops">Backdrop</button>
 </header>
@@ -1008,10 +1306,13 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
       <span id="point-name">Select a point</span>
       <span id="point-coords">Drag an anchor to move it</span>
       <div class="inspector-actions">
+        <button id="symmetricbtn" disabled>Equalize handles <kbd>⇧C</kbd></button>
+      </div>
+      <div class="inspector-actions">
         <button id="deletebtn" class="danger" disabled>Delete point</button>
       </div>
     </section>
-    <p class="hint">Drag round anchors and square control handles. Select a point and press <kbd>Delete</kbd>. Use a small <strong>+</strong> to split a segment.</p>
+    <p class="hint">Handles stay linked by default. Hold <kbd>Alt</kbd> to move one, <kbd>Shift</kbd> for 45°, or press <kbd>⇧C</kbd> to create an equal pair. Alignment guides snap anchors. Select exactly what you want to remove, then press <kbd>Delete</kbd>. Use <kbd>Ctrl/⌘Z</kbd> to undo.</p>
   </aside>
   <main><div id="stage" class="checker"><span id="empty">waiting for first render…</span></div></main>
 </div>
@@ -1021,7 +1322,7 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
   const ns = 'http://www.w3.org/2000/svg';
   const backdrops = ['checker', 'white', 'black'];
   let backdrop = 0, version = -1, state = null, editing = false;
-  let shapeName = null, selectedName = null, drag = null, editorSvg = null, toastTimer = null;
+  let shapeName = null, selection = null, drag = null, editorSvg = null, toastTimer = null;
 
   $('bgbtn').onclick = () => {
     $('stage').classList.remove(backdrops[backdrop]);
@@ -1030,9 +1331,12 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
   };
   $('editbtn').onclick = () => editing ? leaveEditor() : enterEditor();
   $('shape-select').onchange = (event) => {
-    shapeName = event.target.value; selectedName = null; renderEditor();
+    shapeName = event.target.value; selection = null; renderEditor();
   };
   $('deletebtn').onclick = deleteSelected;
+  $('symmetricbtn').onclick = equalizeSelected;
+  $('undobtn').onclick = () => edit({ action: 'undo' });
+  $('redobtn').onclick = () => edit({ action: 'redo' });
 
   function showToast(message) {
     $('toast').textContent = message;
@@ -1049,6 +1353,8 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
       document.title = state.file + ' — strøk';
       $('name').textContent = state.file;
       $('rev').textContent = 'rev ' + state.version;
+      $('undobtn').disabled = !state.canUndo;
+      $('redobtn').disabled = !state.canRedo;
       $('errorbar').hidden = !state.error;
       $('errorbar').textContent = state.error || '';
       $('stage').classList.toggle('stale', !!state.error);
@@ -1089,7 +1395,7 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
 
   function enterEditor() {
     if (!state?.editor.length) return;
-    editing = true; selectedName = null;
+    editing = true; selection = null;
     $('inspector').hidden = false;
     $('editbtn').textContent = 'Done';
     $('editbtn').classList.remove('primary');
@@ -1103,6 +1409,7 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
     $('editbtn').classList.add('primary');
     $('point-name').textContent = 'Select a point';
     $('deletebtn').disabled = true;
+    $('symmetricbtn').disabled = true;
     renderDocument();
   }
 
@@ -1121,6 +1428,35 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
     return index > begin ? index - 1 : (shape.closed ? end - 1 : index);
   }
   function pointAt(shape, index) { return shape.points[index]; }
+  function attachedAnchorIndex(shape, index, handle) {
+    return handle === 'c1' ? previousIndex(shape, index) : index;
+  }
+  function handlesAtAnchor(shape, anchorIndex) {
+    const handles = [];
+    const anchor = pointAt(shape, anchorIndex);
+    if (anchor?.c2 && anchor.controlsEditable) handles.push({ index: anchorIndex, handle: 'c2' });
+    const next = nextIndex(shape, anchorIndex);
+    const outgoing = next === null ? null : pointAt(shape, next);
+    if (outgoing?.c1 && outgoing.controlsEditable) handles.push({ index: next, handle: 'c1' });
+    return handles;
+  }
+  function oppositeHandle(shape, index, handle) {
+    const anchorIndex = attachedAnchorIndex(shape, index, handle);
+    return handlesAtAnchor(shape, anchorIndex).find((candidate) => candidate.index !== index || candidate.handle !== handle) || null;
+  }
+  function selectedAnchorIndex(shape) {
+    if (!selection) return null;
+    const name = selection.kind === 'anchor' ? selection.name : selection.anchor;
+    const index = shape.points.findIndex((point) => point.name === name);
+    return index >= 0 ? index : null;
+  }
+  function isSelectedControl(point, handle) {
+    return selection?.kind === 'control' && selection.point === point.name && selection.handle === handle;
+  }
+  function isRetracted(shape, index, handle) {
+    const point = pointAt(shape, index), anchor = pointAt(shape, attachedAnchorIndex(shape, index, handle));
+    return Math.hypot(point[handle][0] - anchor.x, point[handle][1] - anchor.y) < 1e-7;
+  }
   const lerp = (a, b, t) => a + (b - a) * t;
 
   function smoothControls(shape, targetIndex) {
@@ -1198,13 +1534,26 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
     const span = Math.max(maxX - minX, maxY - minY, 1), pad = Math.max(span * .14, 8), radius = Math.max(span / 105, .8);
     svg.setAttribute('viewBox', `${minX - pad} ${minY - pad} ${Math.max(maxX - minX, 1) + 2 * pad} ${Math.max(maxY - minY, 1) + 2 * pad}`);
 
+    const guideLayer = svgElement('g', { 'data-role': 'guides', 'aria-hidden': 'true' });
+    guideLayer.append(svgElement('line', { class: 'snap-guide', 'data-guide': 'x', visibility: 'hidden' }));
+    guideLayer.append(svgElement('line', { class: 'snap-guide', 'data-guide': 'y', visibility: 'hidden' }));
+    svg.append(guideLayer);
+
     shape.points.forEach((point, index) => {
       if (point.c1 && point.c2) {
         const previous = pointAt(shape, previousIndex(shape, index));
-        svg.append(svgElement('line', { class: 'control-line', 'data-line': `${index}-c1`, x1: previous.x, y1: previous.y, x2: point.c1[0], y2: point.c1[1] }));
-        svg.append(svgElement('line', { class: 'control-line', 'data-line': `${index}-c2`, x1: point.x, y1: point.y, x2: point.c2[0], y2: point.c2[1] }));
+        if (!isRetracted(shape, index, 'c1')) svg.append(svgElement('line', { class: 'control-line', 'data-line': `${index}-c1`, x1: previous.x, y1: previous.y, x2: point.c1[0], y2: point.c1[1] }));
+        if (!isRetracted(shape, index, 'c2')) svg.append(svgElement('line', { class: 'control-line', 'data-line': `${index}-c2`, x1: point.x, y1: point.y, x2: point.c2[0], y2: point.c2[1] }));
       }
     });
+    const selectedAnchor = selectedAnchorIndex(shape);
+    if (selectedAnchor !== null) {
+      const pair = handlesAtAnchor(shape, selectedAnchor).filter((item) => !isRetracted(shape, item.index, item.handle));
+      if (pair.length === 2) {
+        const first = pointAt(shape, pair[0].index)[pair[0].handle], second = pointAt(shape, pair[1].index)[pair[1].handle];
+        svg.append(svgElement('line', { class: 'tangent-guide', 'data-role': 'tangent-guide', x1: first[0], y1: first[1], x2: second[0], y2: second[1] }));
+      }
+    }
     shape.points.forEach((point, index) => {
       const mid = segmentMidpoint(shape, index);
       if (!mid) return;
@@ -1219,14 +1568,19 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
     shape.points.forEach((point, index) => {
       if (point.c1 && point.c2) {
         ['c1', 'c2'].forEach((handle) => {
-          const control = svgElement('rect', { class: `control${point.controlsEditable ? '' : ' readonly'}`, 'data-control': `${index}-${handle}`, x: point[handle][0] - radius * .7, y: point[handle][1] - radius * .7, width: radius * 1.4, height: radius * 1.4, rx: radius * .18 });
-          if (point.controlsEditable) control.onpointerdown = (event) => startDrag(event, 'control', index, handle);
+          if (isRetracted(shape, index, handle)) return;
+          const selected = isSelectedControl(point, handle) ? ' selected' : '';
+          const control = svgElement('rect', { class: `control${point.controlsEditable ? '' : ' readonly'}${selected}`, 'data-control': `${index}-${handle}`, x: point[handle][0] - radius * .7, y: point[handle][1] - radius * .7, width: radius * 1.4, height: radius * 1.4, rx: radius * .18, tabindex: point.controlsEditable ? '0' : '-1', role: 'button', 'aria-label': `${handle === 'c1' ? 'Outgoing' : 'Incoming'} control for ${pointAt(shape, attachedAnchorIndex(shape, index, handle)).name}` });
+          if (point.controlsEditable) {
+            control.onpointerdown = (event) => startDrag(event, 'control', index, handle);
+            control.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectControl(index, handle); } };
+          }
           svg.append(control);
         });
       }
-      const anchor = svgElement('circle', { class: `anchor${point.name === selectedName ? ' selected' : ''}`, 'data-anchor': index, cx: point.x, cy: point.y, r: radius });
+      const anchor = svgElement('circle', { class: `anchor${selection?.kind === 'anchor' && point.name === selection.name ? ' selected' : ''}`, 'data-anchor': index, cx: point.x, cy: point.y, r: radius, tabindex: '0', role: 'button', 'aria-label': `Point ${point.name}` });
       anchor.onpointerdown = (event) => startDrag(event, 'anchor', index, null);
-      anchor.onclick = () => selectPoint(index);
+      anchor.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectAnchor(index); } };
       svg.append(anchor);
     });
     $('stage').replaceChildren(svg);
@@ -1234,25 +1588,43 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
     updatePointPanel();
   }
 
-  function selectPoint(index) {
+  function selectAnchor(index) {
     const shape = currentShape(), point = pointAt(shape, index);
-    selectedName = point.name;
-    editorSvg?.querySelectorAll('.anchor').forEach((anchor) => anchor.classList.toggle('selected', Number(anchor.dataset.anchor) === index));
-    updatePointPanel();
+    selection = { kind: 'anchor', name: point.name };
+    renderEditor();
+  }
+
+  function selectControl(index, handle) {
+    const shape = currentShape(), point = pointAt(shape, index), anchor = pointAt(shape, attachedAnchorIndex(shape, index, handle));
+    selection = { kind: 'control', point: point.name, handle, anchor: anchor.name };
+    renderEditor();
   }
 
   function updatePointPanel() {
-    const shape = currentShape(), point = shape?.points.find((candidate) => candidate.name === selectedName);
-    if (!point) {
+    const shape = currentShape(), anchorIndex = shape ? selectedAnchorIndex(shape) : null;
+    if (anchorIndex === null) {
       $('point-name').textContent = 'Select a point';
       $('point-coords').textContent = 'Drag an anchor to move it';
       $('deletebtn').disabled = true;
+      $('symmetricbtn').disabled = true;
       return;
     }
-    $('point-name').textContent = point.name;
-    $('point-coords').textContent = `${formatNumber(point.x)}, ${formatNumber(point.y)} · ${point.mode}`;
-    const [begin, end] = contourFor(shape, shape.points.indexOf(point));
-    $('deletebtn').disabled = end - begin <= (shape.closed ? 3 : 2);
+    const anchor = pointAt(shape, anchorIndex);
+    if (selection.kind === 'control') {
+      const segment = shape.points.find((point) => point.name === selection.point);
+      const value = segment?.[selection.handle];
+      $('point-name').textContent = `${anchor.name} · ${selection.handle === 'c1' ? 'outgoing' : 'incoming'} control`;
+      $('point-coords').textContent = value ? `${formatNumber(value[0])}, ${formatNumber(value[1])}` : 'Control no longer exists';
+      $('deletebtn').textContent = 'Retract control';
+      $('deletebtn').disabled = !value;
+    } else {
+      $('point-name').textContent = anchor.name;
+      $('point-coords').textContent = `${formatNumber(anchor.x)}, ${formatNumber(anchor.y)} · ${anchor.mode}`;
+      const [begin, end] = contourFor(shape, anchorIndex);
+      $('deletebtn').textContent = 'Delete point';
+      $('deletebtn').disabled = end - begin <= (shape.closed ? 3 : 2);
+    }
+    $('symmetricbtn').disabled = !anchor.canSymmetrize;
   }
   const formatNumber = (value) => Number(value.toFixed(3)).toString();
 
@@ -1263,15 +1635,67 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
 
   function startDrag(event, kind, index, handle) {
     event.preventDefault(); event.stopPropagation();
-    selectPoint(index);
-    drag = { kind, index, handle };
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    const shape = currentShape(), point = pointAt(shape, index);
+    if (kind === 'anchor') {
+      selection = { kind: 'anchor', name: point.name };
+      drag = { kind, index, moved: false };
+    } else {
+      const anchorIndex = attachedAnchorIndex(shape, index, handle), anchor = pointAt(shape, anchorIndex);
+      selection = { kind: 'control', point: point.name, handle, anchor: anchor.name };
+      const opposite = event.altKey ? null : oppositeHandle(shape, index, handle);
+      const oppositePoint = opposite ? pointAt(shape, opposite.index)[opposite.handle] : null;
+      drag = {
+        kind, index, handle, anchorIndex, opposite, moved: false,
+        oppositeLength: oppositePoint ? Math.hypot(oppositePoint[0] - anchor.x, oppositePoint[1] - anchor.y) : 0,
+      };
+    }
+    editorSvg.querySelectorAll('.anchor').forEach((anchor) => anchor.classList.toggle('selected', selection.kind === 'anchor' && pointAt(shape, Number(anchor.dataset.anchor)).name === selection.name));
+    editorSvg.querySelectorAll('.control').forEach((control) => {
+      const [controlIndex, controlHandle] = control.dataset.control.split('-');
+      control.classList.toggle('selected', selection.kind === 'control' && Number(controlIndex) === index && controlHandle === handle);
+    });
+    updateTangentGuide();
+    updatePointPanel();
+  }
+
+  function constrain45(anchor, target) {
+    const dx = target.x - anchor.x, dy = target.y - anchor.y, length = Math.hypot(dx, dy);
+    if (length < 1e-9) return target;
+    const angle = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4);
+    return { x: anchor.x + Math.cos(angle) * length, y: anchor.y + Math.sin(angle) * length };
+  }
+
+  function snapAnchor(shape, index, target) {
+    const viewBox = editorSvg.viewBox.baseVal;
+    const threshold = Math.max(viewBox.width / Math.max(editorSvg.clientWidth, 1), viewBox.height / Math.max(editorSvg.clientHeight, 1)) * 7;
+    let x = target.x, y = target.y, guideX = null, guideY = null, bestX = threshold, bestY = threshold;
+    shape.points.forEach((candidate, candidateIndex) => {
+      if (candidateIndex === index) return;
+      const dx = Math.abs(candidate.x - target.x), dy = Math.abs(candidate.y - target.y);
+      if (dx < bestX) { bestX = dx; x = candidate.x; guideX = candidate.x; }
+      if (dy < bestY) { bestY = dy; y = candidate.y; guideY = candidate.y; }
+    });
+    showSnapGuides(guideX, guideY);
+    return { x, y };
+  }
+
+  function showSnapGuides(x, y) {
+    if (!editorSvg) return;
+    const box = editorSvg.viewBox.baseVal, xGuide = editorSvg.querySelector('[data-guide="x"]'), yGuide = editorSvg.querySelector('[data-guide="y"]');
+    xGuide.setAttribute('visibility', x === null ? 'hidden' : 'visible');
+    if (x !== null) { xGuide.setAttribute('x1', x); xGuide.setAttribute('x2', x); xGuide.setAttribute('y1', box.y); xGuide.setAttribute('y2', box.y + box.height); }
+    yGuide.setAttribute('visibility', y === null ? 'hidden' : 'visible');
+    if (y !== null) { yGuide.setAttribute('x1', box.x); yGuide.setAttribute('x2', box.x + box.width); yGuide.setAttribute('y1', y); yGuide.setAttribute('y2', y); }
   }
 
   window.addEventListener('pointermove', (event) => {
     if (!drag || !editing || !editorSvg) return;
-    const shape = currentShape(), point = pointAt(shape, drag.index), next = nextIndex(shape, drag.index), target = screenPoint(event);
+    const shape = currentShape(), point = pointAt(shape, drag.index), next = nextIndex(shape, drag.index);
+    let target = screenPoint(event);
+    drag.moved = true;
     if (drag.kind === 'anchor') {
+      target = snapAnchor(shape, drag.index, target);
       const dx = target.x - point.x, dy = target.y - point.y;
       point.x = target.x; point.y = target.y;
       if (point.controlsEditable && point.c2) { point.c2[0] += dx; point.c2[1] += dy; }
@@ -1280,7 +1704,16 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
         if (following.controlsEditable && following.c1) { following.c1[0] += dx; following.c1[1] += dy; }
       }
     } else {
+      const anchor = pointAt(shape, drag.anchorIndex);
+      if (event.shiftKey) target = constrain45(anchor, target);
       point[drag.handle] = [target.x, target.y];
+      if (drag.opposite) {
+        const dx = target.x - anchor.x, dy = target.y - anchor.y, length = Math.hypot(dx, dy);
+        if (length > 1e-9) {
+          const oppositePoint = pointAt(shape, drag.opposite.index);
+          oppositePoint[drag.opposite.handle] = [anchor.x - dx / length * drag.oppositeLength, anchor.y - dy / length * drag.oppositeLength];
+        }
+      }
     }
     updateGeometry(); updatePointPanel();
   });
@@ -1289,8 +1722,24 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
     if (!drag) return;
     const shape = currentShape(), point = pointAt(shape, drag.index), pending = drag;
     drag = null;
+    showSnapGuides(null, null);
+    if (!pending.moved) return;
     if (pending.kind === 'anchor') await edit({ action: 'move', shape: shape.name, point: point.name, x: point.x, y: point.y });
-    else await edit({ action: 'control', shape: shape.name, point: point.name, handle: pending.handle, x: point[pending.handle][0], y: point[pending.handle][1] });
+    else {
+      const fields = { action: 'control', shape: shape.name, point: point.name, handle: pending.handle, x: point[pending.handle][0], y: point[pending.handle][1] };
+      if (pending.opposite) {
+        const oppositePoint = pointAt(shape, pending.opposite.index);
+        Object.assign(fields, { oppositePoint: oppositePoint.name, oppositeHandle: pending.opposite.handle, oppositeX: oppositePoint[pending.opposite.handle][0], oppositeY: oppositePoint[pending.opposite.handle][1] });
+      }
+      await edit(fields);
+    }
+  });
+
+  window.addEventListener('pointercancel', () => {
+    if (!drag) return;
+    drag = null;
+    showSnapGuides(null, null);
+    refresh();
   });
 
   function updateGeometry() {
@@ -1308,14 +1757,28 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
       }
       if (!point.c1 || !point.c2) return;
       ['c1', 'c2'].forEach((handle) => {
-        const control = editorSvg.querySelector(`[data-control="${index}-${handle}"]`), width = Number(control.getAttribute('width'));
+        const control = editorSvg.querySelector(`[data-control="${index}-${handle}"]`);
+        if (!control) return;
+        const width = Number(control.getAttribute('width'));
         control.setAttribute('x', point[handle][0] - width / 2); control.setAttribute('y', point[handle][1] - width / 2);
       });
       const previous = pointAt(shape, previousIndex(shape, index));
       const line1 = editorSvg.querySelector(`[data-line="${index}-c1"]`), line2 = editorSvg.querySelector(`[data-line="${index}-c2"]`);
-      line1.setAttribute('x1', previous.x); line1.setAttribute('y1', previous.y); line1.setAttribute('x2', point.c1[0]); line1.setAttribute('y2', point.c1[1]);
-      line2.setAttribute('x1', point.x); line2.setAttribute('y1', point.y); line2.setAttribute('x2', point.c2[0]); line2.setAttribute('y2', point.c2[1]);
+      if (line1) { line1.setAttribute('x1', previous.x); line1.setAttribute('y1', previous.y); line1.setAttribute('x2', point.c1[0]); line1.setAttribute('y2', point.c1[1]); }
+      if (line2) { line2.setAttribute('x1', point.x); line2.setAttribute('y1', point.y); line2.setAttribute('x2', point.c2[0]); line2.setAttribute('y2', point.c2[1]); }
     });
+    updateTangentGuide();
+  }
+
+  function updateTangentGuide() {
+    if (!editorSvg) return;
+    const shape = currentShape(), anchorIndex = selectedAnchorIndex(shape);
+    let guide = editorSvg.querySelector('[data-role="tangent-guide"]');
+    const pair = anchorIndex === null ? [] : handlesAtAnchor(shape, anchorIndex).filter((item) => !isRetracted(shape, item.index, item.handle));
+    if (pair.length !== 2) { guide?.remove(); return; }
+    if (!guide) { guide = svgElement('line', { class: 'tangent-guide', 'data-role': 'tangent-guide' }); editorSvg.append(guide); }
+    const first = pointAt(shape, pair[0].index)[pair[0].handle], second = pointAt(shape, pair[1].index)[pair[1].handle];
+    guide.setAttribute('x1', first[0]); guide.setAttribute('y1', first[1]); guide.setAttribute('x2', second[0]); guide.setAttribute('y2', second[1]);
   }
 
   async function addAfter(index) {
@@ -1324,9 +1787,22 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
   }
   async function deleteSelected() {
     const shape = currentShape();
-    if (!selectedName || $('deletebtn').disabled) return;
-    await edit({ action: 'delete', shape: shape.name, point: selectedName });
-    selectedName = null;
+    if (!selection || $('deletebtn').disabled) return;
+    const pending = selection;
+    selection = null;
+    if (pending.kind === 'control') {
+      await edit({ action: 'retract-control', shape: shape.name, point: pending.point, handle: pending.handle });
+    } else {
+      await edit({ action: 'delete', shape: shape.name, point: pending.name });
+    }
+  }
+
+  async function equalizeSelected() {
+    const shape = currentShape(), anchorIndex = shape ? selectedAnchorIndex(shape) : null;
+    if (anchorIndex === null || $('symmetricbtn').disabled) return;
+    const anchor = pointAt(shape, anchorIndex);
+    selection = { kind: 'anchor', name: anchor.name };
+    await edit({ action: 'symmetric', shape: shape.name, point: anchor.name });
   }
 
   async function edit(fields) {
@@ -1344,8 +1820,16 @@ const PREVIEW_HTML: &str = r##"<!doctype html>
   }
 
   window.addEventListener('keydown', (event) => {
-    if (!editing || /^(INPUT|SELECT|TEXTAREA)$/.test(event.target.tagName)) return;
+    if (/^(INPUT|SELECT|TEXTAREA)$/.test(event.target.tagName)) return;
+    const command = event.metaKey || event.ctrlKey;
+    if (command && event.key.toLowerCase() === 'z') {
+      event.preventDefault();
+      edit({ action: event.shiftKey ? 'redo' : 'undo' });
+      return;
+    }
+    if (!editing) return;
     if ((event.key === 'Delete' || event.key === 'Backspace') && !$('deletebtn').disabled) { event.preventDefault(); deleteSelected(); }
+    if (event.shiftKey && !command && event.key.toLowerCase() === 'c' && !$('symmetricbtn').disabled) { event.preventDefault(); equalizeSelected(); }
     if (event.key === 'Escape') leaveEditor();
   });
 

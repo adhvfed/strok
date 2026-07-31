@@ -1666,6 +1666,9 @@ fn watch_serves_preview_and_rerenders_on_change() {
     let index = watch_http_get(port, "/");
     assert!(index.contains("200 OK"), "{index}");
     assert!(index.contains("text/html"), "{index}");
+    assert!(index.contains("Equalize handles"), "{index}");
+    assert!(index.contains("Handles stay linked by default"), "{index}");
+    assert!(index.contains("id=\"undobtn\""), "{index}");
 
     let state = watch_http_get(port, "/state.json");
     assert!(state.contains("\"version\":1"), "{state}");
@@ -1757,6 +1760,8 @@ fn watch_visually_edits_points_controls_and_topology() {
     let state = watch_http_get(port, "/state.json");
     assert!(state.contains("\"editor\":[{\"name\":\"curve\""), "{state}");
     assert!(state.contains("\"controlsEditable\":true"), "{state}");
+    assert!(state.contains("\"canSymmetrize\":true"), "{state}");
+    assert!(state.contains("\"canUndo\":false"), "{state}");
 
     let moved = watch_http_post(port, "/edit", "action=move&shape=curve&point=a&x=12&y=14");
     assert!(moved.contains("200 OK"), "{moved}");
@@ -1771,6 +1776,58 @@ fn watch_visually_edits_points_controls_and_topology() {
     assert!(controlled.contains("200 OK"), "{controlled}");
     let source = fs::read_to_string(&strok_path).unwrap();
     assert!(source.contains("c1=30,6"), "{source}");
+
+    let symmetric = watch_http_post(port, "/edit", "action=symmetric&shape=curve&point=a");
+    assert!(symmetric.contains("200 OK"), "{symmetric}");
+    let source = fs::read_to_string(&strok_path).unwrap();
+    assert!(
+        source.contains("addpoint a at=12,14 mode=controls"),
+        "{source}"
+    );
+
+    let linked = watch_http_post(
+        port,
+        "/edit",
+        "action=control&shape=curve&point=b&handle=c1&x=25&y=14&oppositePoint=a&oppositeHandle=c2&oppositeX=5&oppositeY=14",
+    );
+    assert!(linked.contains("200 OK"), "{linked}");
+    let source = fs::read_to_string(&strok_path).unwrap();
+    assert!(source.contains("c1=25,14"), "{source}");
+    assert!(source.contains("c2=5,14"), "{source}");
+
+    let retracted = watch_http_post(
+        port,
+        "/edit",
+        "action=retract-control&shape=curve&point=b&handle=c1",
+    );
+    assert!(retracted.contains("200 OK"), "{retracted}");
+    let source = fs::read_to_string(&strok_path).unwrap();
+    assert!(source.contains("c1=12,14"), "{source}");
+
+    let undone = watch_http_post(port, "/edit", "action=undo");
+    assert!(undone.contains("200 OK"), "{undone}");
+    let source = fs::read_to_string(&strok_path).unwrap();
+    assert!(source.contains("c1=25,14"), "{source}");
+    let redone = watch_http_post(port, "/edit", "action=redo");
+    assert!(redone.contains("200 OK"), "{redone}");
+    let source = fs::read_to_string(&strok_path).unwrap();
+    assert!(source.contains("c1=12,14"), "{source}");
+
+    // A hand edit remains authoritative and invalidates incompatible browser
+    // history rather than allowing an undo to overwrite it later.
+    fs::write(&strok_path, source.replace("#ff0000", "#00ff00")).unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        let state = watch_http_get(port, "/state.json");
+        if state.contains("#00ff00") && state.contains("\"canUndo\":false") {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "external edit did not clear browser history: {state}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
 
     let added = watch_http_post(port, "/edit", "action=add&shape=curve&after=a");
     assert!(added.contains("200 OK"), "{added}");
