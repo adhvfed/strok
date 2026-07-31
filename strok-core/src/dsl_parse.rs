@@ -1363,7 +1363,14 @@ fn parse_group_block(
     // expressions and any nested `repeat`/`createlink` uniformly.
     let empty: HashSet<String> = HashSet::new();
     let mut children = Vec::new();
-    expand_nodes(body, env, "", &empty, &mut children, out_shapes)?;
+    let mut context = ExpansionContext {
+        env,
+        suffix: "",
+        rename: &empty,
+        out_nodes: &mut children,
+        out_shapes,
+    };
+    expand_nodes(body, &mut context)?;
     group.children = children;
     Ok(group)
 }
@@ -1402,17 +1409,10 @@ fn parse_boolean_block(line: &Line, body: &[Line], env: &Env) -> Result<Boolean>
     let mut operations = Vec::new();
     let mut i = 0;
     while i < body.len() {
-        let body_line = &body[i];
-        let base_indent = body_line.indent;
-        let mut sub_body = Vec::new();
-        let mut j = i + 1;
-        while j < body.len() && body[j].indent > base_indent {
-            sub_body.push(body[j].clone());
-            j += 1;
-        }
+        let (body_line, sub_body, next) = next_block(body, i);
         match body_line.tokens[0].as_str() {
             "place" => children.push(SceneNode::Place(parse_place_line(
-                body_line, &sub_body, env,
+                body_line, sub_body, env,
             )?)),
             "fill" => operations.push(parse_fill(body_line)?),
             "fill-rule" => operations.push(parse_fill_rule(body_line)?),
@@ -1434,7 +1434,7 @@ fn parse_boolean_block(line: &Line, body: &[Line], env: &Env) -> Result<Boolean>
                 ));
             }
         }
-        i = j;
+        i = next;
     }
     if children.len() < 2 {
         return Err(parse_err(
@@ -2399,9 +2399,27 @@ fn parse_repeat(
     for i in 0..count {
         let iter_env = env.child(var.clone(), i as f64);
         let suffix = format!("{}-{}", base_suffix, i);
-        expand_nodes(body, &iter_env, &suffix, &rename, out_nodes, out_shapes)?;
+        let mut context = ExpansionContext {
+            env: &iter_env,
+            suffix: &suffix,
+            rename: &rename,
+            out_nodes,
+            out_shapes,
+        };
+        expand_nodes(body, &mut context)?;
     }
     Ok(())
+}
+
+/// Return one line, its indentation-defined body, and the index of the next
+/// sibling. Keeping the body borrowed avoids cloning every nested [`Line`].
+fn next_block(body: &[Line], index: usize) -> (&Line, &[Line], usize) {
+    let line = &body[index];
+    let mut next = index + 1;
+    while next < body.len() && body[next].indent > line.indent {
+        next += 1;
+    }
+    (line, &body[index + 1..next], next)
 }
 
 /// Collect the names defined by `place`/`group`/`createlink` at this repeat
@@ -2411,93 +2429,96 @@ fn collect_defined_names(body: &[Line]) -> HashSet<String> {
     let mut names = HashSet::new();
     let mut i = 0;
     while i < body.len() {
-        let bl = &body[i];
-        let kw = bl.tokens[0].as_str();
-        let base_indent = bl.indent;
-        // Sub-body range.
-        let mut j = i + 1;
-        while j < body.len() && body[j].indent > base_indent {
-            j += 1;
-        }
-        match kw {
+        let (line, child_body, next) = next_block(body, i);
+        match line.tokens[0].as_str() {
             "place" | "createlink" => {
-                if let Some(n) = bl.tokens.get(1) {
-                    names.insert(n.clone());
+                if let Some(name) = line.tokens.get(1) {
+                    names.insert(name.clone());
                 }
             }
             "group" => {
-                if let Some(n) = bl.tokens.get(1) {
-                    names.insert(n.clone());
+                if let Some(name) = line.tokens.get(1) {
+                    names.insert(name.clone());
                 }
-                names.extend(collect_defined_names(&body[i + 1..j]));
+                names.extend(collect_defined_names(child_body));
             }
             // `repeat` is opaque: its names are suffixed within its own scope.
             _ => {}
         }
-        i = j;
+        i = next;
     }
     names
 }
 
-/// Expand a body of scene-node lines for one repeat iteration, applying `suffix`
-/// to defined names and rewriting sibling references in `rename`.
-fn expand_nodes(
-    body: &[Line],
-    env: &Env,
-    suffix: &str,
-    rename: &HashSet<String>,
-    out_nodes: &mut Vec<SceneNode>,
-    out_shapes: &mut Vec<Shape>,
-) -> Result<()> {
+struct ExpansionContext<'a> {
+    env: &'a Env,
+    suffix: &'a str,
+    rename: &'a HashSet<String>,
+    out_nodes: &'a mut Vec<SceneNode>,
+    out_shapes: &'a mut Vec<Shape>,
+}
+
+/// Expand a body of scene-node lines for one repeat iteration.
+fn expand_nodes(body: &[Line], context: &mut ExpansionContext<'_>) -> Result<()> {
     let mut i = 0;
     while i < body.len() {
-        let bl = &body[i];
-        let kw = bl.tokens[0].as_str();
-        let base_indent = bl.indent;
-        let mut sub_body = Vec::new();
-        let mut j = i + 1;
-        while j < body.len() && body[j].indent > base_indent {
-            sub_body.push(body[j].clone());
-            j += 1;
-        }
+        let (line, child_body, next) = next_block(body, i);
+        expand_node(line, child_body, context)?;
+        i = next;
+    }
+    Ok(())
+}
 
-        match kw {
-            "place" => {
-                let mut p = parse_place_line(bl, &sub_body, env)?;
-                suffix_place(&mut p, suffix, rename);
-                out_nodes.push(SceneNode::Place(p));
-            }
-            "group" => {
-                let mut g = parse_group_header(bl, env)?;
-                let mut children = Vec::new();
-                expand_nodes(&sub_body, env, suffix, rename, &mut children, out_shapes)?;
-                g.children = children;
-                g.name = format!("{}{}", g.name, suffix);
-                suffix_group_refs(&mut g, rename, suffix);
-                out_nodes.push(SceneNode::Group(g));
-            }
-            "createlink" => {
-                let (mut link, mut shape) = parse_link_line(bl, &sub_body)?;
-                let new_name = format!("{}{}", link.name, suffix);
-                if rename.contains(&link.source) {
-                    link.source = format!("{}{}", link.source, suffix);
-                }
-                link.name = new_name.clone();
-                shape.name = new_name;
-                out_nodes.push(SceneNode::Link(link));
-                out_shapes.push(shape);
-            }
-            "repeat" => {
-                parse_repeat(bl, &sub_body, env, suffix, out_nodes, out_shapes)?;
-            }
-            _ => {
-                return Err(parse_err(
-                    bl,
-                    &format!("unexpected '{}' in repeat body (allowed: place, group, createlink, repeat)", kw),
-                ));
-            }
+/// Parse and rewrite one node in a repeat body.
+fn expand_node(line: &Line, body: &[Line], context: &mut ExpansionContext<'_>) -> Result<()> {
+    match line.tokens[0].as_str() {
+        "place" => {
+            let mut place = parse_place_line(line, body, context.env)?;
+            suffix_place(&mut place, context.suffix, context.rename);
+            context.out_nodes.push(SceneNode::Place(place));
         }
-        i = j;
+        "group" => {
+            let mut group = parse_group_header(line, context.env)?;
+            let mut children = Vec::new();
+            let mut child_context = ExpansionContext {
+                env: context.env,
+                suffix: context.suffix,
+                rename: context.rename,
+                out_nodes: &mut children,
+                out_shapes: context.out_shapes,
+            };
+            expand_nodes(body, &mut child_context)?;
+            group.children = children;
+            group.name = format!("{}{}", group.name, context.suffix);
+            suffix_group_refs(&mut group, context.rename, context.suffix);
+            context.out_nodes.push(SceneNode::Group(group));
+        }
+        "createlink" => {
+            let (mut link, mut shape) = parse_link_line(line, body)?;
+            let new_name = format!("{}{}", link.name, context.suffix);
+            rewrite_ref(&mut link.source, context.rename, context.suffix);
+            link.name = new_name.clone();
+            shape.name = new_name;
+            context.out_nodes.push(SceneNode::Link(link));
+            context.out_shapes.push(shape);
+        }
+        "repeat" => parse_repeat(
+            line,
+            body,
+            context.env,
+            context.suffix,
+            context.out_nodes,
+            context.out_shapes,
+        )?,
+        keyword => {
+            return Err(parse_err(
+                line,
+                &format!(
+                    "unexpected '{}' in repeat body (allowed: place, group, createlink, repeat)",
+                    keyword
+                ),
+            ));
+        }
     }
     Ok(())
 }
