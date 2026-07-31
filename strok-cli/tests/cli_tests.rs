@@ -1552,3 +1552,107 @@ fn std_import_unknown_module_errors_with_available_list() {
     assert!(err.contains("std/nope"), "{err}");
     assert!(err.contains("figures"), "{err}");
 }
+
+// --- watch mode -------------------------------------------------------------
+
+/// One raw HTTP GET against the watch server, returning the full response.
+fn watch_http_get(port: u16, path: &str) -> String {
+    use std::io::{Read, Write};
+    let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).expect("connect");
+    write!(
+        stream,
+        "GET {} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+        path
+    )
+    .unwrap();
+    let mut out = String::new();
+    stream.read_to_string(&mut out).unwrap();
+    out
+}
+
+#[test]
+fn watch_serves_preview_and_rerenders_on_change() {
+    use std::io::BufRead;
+
+    let strok_path = write_temp_strok(concat!(
+        "documentsize 100x100\n",
+        "\n",
+        "shape s template=rectangle\n",
+        "  fill #ff0000\n",
+        "\n",
+        "place p shape=s at=10,10 size=50x50\n",
+    ));
+
+    // --port 0 binds an ephemeral port; the startup line on stderr reports it.
+    let mut child = Command::new(env!("CARGO_BIN_EXE_strok"))
+        .args([
+            "watch",
+            strok_path.to_str().unwrap(),
+            "--no-open",
+            "--port",
+            "0",
+        ])
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn watch");
+    let stderr = child.stderr.take().unwrap();
+    let mut lines = std::io::BufReader::new(stderr).lines();
+    let port: u16 = loop {
+        let line = lines
+            .next()
+            .expect("watch exited before startup line")
+            .unwrap();
+        if let Some(idx) = line.find("127.0.0.1:") {
+            let rest = &line[idx + "127.0.0.1:".len()..];
+            let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+            break digits.parse().unwrap();
+        }
+    };
+
+    let index = watch_http_get(port, "/");
+    assert!(index.contains("200 OK"), "{index}");
+    assert!(index.contains("text/html"), "{index}");
+
+    let state = watch_http_get(port, "/state.json");
+    assert!(state.contains("\"version\":1"), "{state}");
+    assert!(state.contains("#ff0000"), "{state}");
+    assert!(state.contains("\"error\":null"), "{state}");
+
+    // Edit the file; the poller (150ms) should re-render and bump the version.
+    let mut contents = fs::read_to_string(&strok_path).unwrap();
+    contents = contents.replace("#ff0000", "#00cc00");
+    fs::write(&strok_path, &contents).unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    let updated = loop {
+        let state = watch_http_get(port, "/state.json");
+        if state.contains("#00cc00") {
+            break state;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "watch never picked up the edit; last state: {state}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    };
+    assert!(updated.contains("\"version\":2"), "{updated}");
+
+    // Break the file: the error is surfaced but the last good render is kept.
+    fs::write(&strok_path, format!("{contents}garbage line\n")).unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        let state = watch_http_get(port, "/state.json");
+        if state.contains("unexpected top-level keyword") {
+            assert!(state.contains("#00cc00"), "last good svg dropped: {state}");
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "watch never reported the parse error; last state: {state}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
+    child.kill().unwrap();
+    let _ = child.wait();
+    cleanup(&strok_path);
+}

@@ -1,5 +1,6 @@
 mod cli;
 mod mcp;
+mod watch;
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -75,6 +76,21 @@ fn run() -> Result<()> {
 
         Command::McpServer => {
             mcp::run_stdio()?;
+        }
+
+        // Watch takes its file positionally (like `new`) or via -f.
+        Command::Watch {
+            file,
+            port,
+            scheme,
+            no_open,
+        } => {
+            let file = file.as_deref().or(cli.file.as_deref()).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "missing file to watch\n\nUsage: strok watch <file>   (or strok -f <file> watch)"
+                )
+            })?;
+            watch::run(Path::new(file), *port, scheme.as_deref(), !no_open)?;
         }
 
         // `diff a.png b.png` needs no document file; `diff --since N` does and is
@@ -155,7 +171,8 @@ fn run() -> Result<()> {
                 | Command::Lib { .. }
                 | Command::AgentIntro
                 | Command::Guide { .. }
-                | Command::McpServer => {
+                | Command::McpServer
+                | Command::Watch { .. } => {
                     unreachable!()
                 }
 

@@ -817,6 +817,34 @@ strok -f <file> render [--out <file.png>] [--width <px>] [--height <px>]
 - `--scheme <name>`: resolve `$token` colors with the named colorscheme (see DSL_SPEC § Colorschemes)
 - With `--out` set and `--scheme` omitted, renders the base palette to `--out` plus every defined scheme to `<out>-<scheme>.png`
 
+### `watch`
+
+Live-preview a document in the browser while editing it — the human-facing
+complement to the agent render loop.
+
+```
+strok watch <file> [--port <port>] [--scheme <name>] [--no-open]
+strok -f <file> watch
+```
+
+Starts a local HTTP server bound to `127.0.0.1`, opens the preview page in the
+default browser, and re-renders the resolved SVG on every save (mtime + content
+polling, so rename-style editor saves work). The page updates over Server-Sent
+Events with no manual refresh.
+
+- Parse errors are shown in the page with their caret diagnostics while the
+  **last good render stays visible** (dimmed), so the preview never goes blank
+  mid-edit.
+- The preview backdrop cycles checkerboard → white → black to judge
+  transparency and both polarities.
+- `--port` defaults to an ephemeral free port; the chosen URL is printed on
+  startup.
+- `--scheme <name>`: resolve `$token` colors with the named colorscheme.
+- `--no-open`: don't launch the browser (print the URL only).
+- This is the only long-running command besides `mcp-server`; stop it with
+  Ctrl-C. The file on disk remains the single source of truth — the server
+  holds no document state.
+
 ### `batch`
 
 Render **every `*.strok` in a directory** to SVG and/or PNG — built for icon sets.

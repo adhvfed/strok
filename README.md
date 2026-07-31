@@ -55,6 +55,10 @@ shape head template=ellipse
 place head shape=head at=0,0 size=200x200
 ```
 
+Editing by hand? `strok watch face.strok` opens a live browser preview that
+re-renders on every save — parse errors show inline while the last good render
+stays visible.
+
 Run `strok --help` for the complete workflow and DSL guide. See
 [DSL_SPEC.md](DSL_SPEC.md) for the language reference,
 [CLI_SPEC.md](CLI_SPEC.md) for command behavior.

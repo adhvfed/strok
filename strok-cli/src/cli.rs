@@ -300,6 +300,33 @@ Examples:
         profile: Option<String>,
     },
 
+    /// Live-preview a document in the browser while you edit it
+    #[command(long_about = "\
+Watch a .strok file and live-preview it in the browser.
+
+Starts a local preview server, opens it in the browser, and re-renders on
+every save. Parse errors show in the page while the last good render stays
+visible, so the preview never goes blank mid-edit. Built for editing .strok
+source by hand in an editor; press Ctrl-C to stop.
+
+Examples:
+  strok watch design.strok
+  strok -f design.strok watch
+  strok watch design.strok --scheme dark --port 4848 --no-open")]
+    Watch {
+        /// Document to watch (or pass it with -f)
+        file: Option<String>,
+        /// Port for the preview server (default: any free port)
+        #[arg(long, default_value_t = 0)]
+        port: u16,
+        /// Colorscheme to resolve tokens with (base if omitted)
+        #[arg(long)]
+        scheme: Option<String>,
+        /// Don't open the browser automatically
+        #[arg(long)]
+        no_open: bool,
+    },
+
     /// Execute a DSL line (appends to the file)
     #[command(long_about = "\
 Append any raw DSL line to the file.
