@@ -20,12 +20,18 @@ components editable, reviewable, and easy to generate.
 
 ## Install
 
-Strøk currently installs from source and requires a stable Rust toolchain:
+Install Strøk with Homebrew:
 
 ```sh
-git clone https://github.com/adrianhelvik/strok.git
+brew install adhvfed/tap/strok
+```
+
+Or build it from source with a stable Rust toolchain:
+
+```sh
+git clone https://github.com/adhvfed/strok.git
 cd strok
-cargo install --path strok-cli
+cargo install --path strok-cli --locked
 ```
 
 ## Quick start
@@ -39,7 +45,9 @@ strok guide illustration # or icon, logo, diagram
 
 The introduction selects an appropriate effort level and teaches the
 render-review loop, including high-resolution focal-region inspection and
-`render --outline [id1,id2]` for reading exact geometry through paint and shading.
+`render --outline [id1,id2]` for reading exact geometry through paint and
+shading. It also explains how to hand the work to a person for review or direct
+editing with `strok watch`.
 
 ```sh
 strok new face.strok 200x200

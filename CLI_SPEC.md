@@ -27,8 +27,10 @@ strok agent-intro
 The introduction treats Strøk as a visual construction and feedback system. It
 defines sketch, production, and showcase effort levels; teaches command and
 standard-library discovery; and gives a full-frame/region render loop with
-explicit completion gates. The same introduction is exposed as the MCP
-`agent_intro` tool.
+explicit completion gates. It also explains how to start `watch` for human
+review or direct geometry editing, avoid concurrent source writes, and validate
+the resulting file after the user hands it back. The same introduction is
+exposed as the MCP `agent_intro` tool.
 
 ### `guide`
 

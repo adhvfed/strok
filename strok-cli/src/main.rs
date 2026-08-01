@@ -1236,7 +1236,23 @@ image at its real viewing size. Plan enough visual review for the requested bar.
    Use one source writer at a time. Checkpoint before interactive point edits,
    then inspect the whole affected shape after each mutation.
 
-5. FINISH WITH A VISUAL, NOT SYNTACTIC, GATE
+5. HAND OFF TO THE USER THROUGH WATCH
+
+   strok watch art.strok
+
+   Use `watch` when the user should review the composed design or refine it
+   directly. It opens a local browser preview and follows external file saves.
+   The user can also select local shapes and edit anchors, Bézier controls, and
+   segment topology in the browser; those gestures are written to the watched
+   `.strok` file immediately and have browser undo/redo. Imported module shapes
+   remain read-only, and broader scene composition remains file- and CLI-first.
+
+   Treat this as a source handoff: use one source writer at a time. While the user
+   reviews or edits in `watch`, do not make concurrent agent edits. When they hand
+   the file back, reread it, render the full frame, and rerun relevant inspection
+   and audit checks before continuing or declaring it finished.
+
+6. FINISH WITH A VISUAL, NOT SYNTACTIC, GATE
 
    Check silhouette, joins, tangencies, clipping, z-order, perspective, material
    cues, repeated stroke/radius language, and details at delivery size. Run audit,

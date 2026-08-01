@@ -53,6 +53,7 @@ jobs:
     permissions:
       contents: read
       checks: write
+      issues: write
     steps:
       - uses: actions/checkout@v7
       - uses: rustsec/audit-check@v2.0.0
@@ -107,6 +108,8 @@ jobs:
         run: cargo test -p strok-core --release --test perf_budget
       - name: mutants (diagnostic)
         continue-on-error: true
+        timeout-minutes: 120
         # mutants.toml scopes the run. Results are diagnostic until a stable
-        # surviving-mutant budget is documented.
+        # surviving-mutant budget is documented. Keep the diagnostic bounded so
+        # it cannot consume the runner's full job timeout.
         run: cargo mutants --in-place

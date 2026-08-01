@@ -959,6 +959,9 @@ mod tests {
             assert!(text.contains("render --region"));
             assert!(text.contains("render --outline"));
             assert!(text.contains("live `boolean"));
+            assert!(text.contains("strok watch art.strok"));
+            assert!(text.contains("one source writer at a time"));
+            assert!(text.contains("reread it"));
             assert!(text.contains("showcase"));
         } else {
             panic!("expected content");

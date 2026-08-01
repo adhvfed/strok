@@ -283,6 +283,10 @@ fn agent_intro_sets_effort_and_requires_focused_visual_review() {
         "render --region",
         "render --outline",
         "live `boolean",
+        "strok watch art.strok",
+        "written to the watched",
+        "one source writer at a time",
+        "reread it",
         "thumbnail or",
         "Technically valid",
     ] {

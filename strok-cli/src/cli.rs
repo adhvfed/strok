@@ -266,6 +266,7 @@ It explains:
   - how to discover DSL primitives and standard-library shapes
   - how to build from composition to detail
   - how to use full-frame and region renders, audit, inspect, query, and diff
+  - how to hand work to a person for review or live editing with `strok watch`
   - when technically valid output is not visually finished
 
 Start here, then load the guide for the requested output:
@@ -319,8 +320,10 @@ Watch a .strok file and live-preview it in the browser.
 
 Starts a local preview server, opens it in the browser, and re-renders on
 every save. Parse errors show in the page while the last good render stays
-visible, so the preview never goes blank mid-edit. Built for editing .strok
-source by hand in an editor; press Ctrl-C to stop.
+visible, so the preview never goes blank mid-edit. The browser can select local
+shapes and edit their anchors, Bézier controls, and segment topology; those
+changes are written back to the .strok source immediately with browser undo and
+redo. It also follows edits made by hand in a text editor. Press Ctrl-C to stop.
 
 Examples:
   strok watch design.strok
