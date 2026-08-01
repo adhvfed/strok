@@ -4,10 +4,6 @@ Strøk is a scriptable vector-design toolkit for people and software agents. Its
 plain-text `.strok` format keeps geometry, layout, design tokens, and reusable
 components editable, reviewable, and easy to generate.
 
-> [!IMPORTANT]
-> Strøk is alpha software. The file format and command-line interface may change
-> before 1.0.
-
 ## What it does
 
 - Authors vector scenes in a readable text format or through CLI commands.
@@ -96,11 +92,10 @@ Each preview links directly to its editable `.strok` source.
 ## Project status
 
 The parser, geometry engine, renderer, CLI, framework targets, standard shape
-library, and MCP server are implemented and covered by automated tests. Strøk
-includes focused point editing in `watch`; broader scene composition remains
-file- and CLI-first. Rasterized text uses system fonts, so exact glyph rendering
-can vary between machines; deterministic SVG snapshots are the authoritative
-rendering tests.
+library, and MCP server are implemented and covered by automated tests. The
+`watch` editor handles point geometry; scene composition uses the text format
+and CLI. Rasterized text uses system fonts. Deterministic SVG snapshots define
+the rendering contract.
 
 See [ROADMAP.md](ROADMAP.md) for planned work and
 [CONTRIBUTING.md](CONTRIBUTING.md) to contribute.
