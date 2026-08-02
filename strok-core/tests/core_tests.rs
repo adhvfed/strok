@@ -599,8 +599,8 @@ place p2 shape=petal-dark at=200,100 size=50x80
 }
 
 #[test]
-fn v3_rose_example_resolves() {
-    let input = include_str!("../../examples/rose-v3.strok");
+fn v3_rose_fixture_resolves() {
+    let input = include_str!("../../test-fixtures/rose-v3.strok");
     let scene = dsl_parse::parse_file(input).unwrap();
     let svg = resolve::resolve_scene(&scene);
 
@@ -636,8 +636,8 @@ fn v3_rose_example_resolves() {
 }
 
 #[test]
-fn v3_rose_example_emits_valid_svg() {
-    let input = include_str!("../../examples/rose-v3.strok");
+fn v3_rose_fixture_emits_valid_svg() {
+    let input = include_str!("../../test-fixtures/rose-v3.strok");
     let scene = dsl_parse::parse_file(input).unwrap();
     let doc = Document::from_scene(scene);
 

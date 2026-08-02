@@ -82,7 +82,7 @@ pub fn emit_scene(scene: &Scene) -> String {
     // emission (in `emit_node`) is the single source of truth. Emitting the
     // alias shape *as well* duplicated every top-level createlink, and the
     // duplication compounded on each re-parse — breaking the round-trip
-    // invariant (caught by `fuzz_roundtrip` on examples/shape-language.strok).
+    // invariant (caught by `fuzz_roundtrip`).
     //
     // So: emit only the *base* shapes here (those NOT referenced by any Link
     // node) and let the node loop emit the links.
@@ -1365,12 +1365,12 @@ place s shape=s at=0,0 size=400x400
         }
     }
 
-    /// The design-system example round-trips byte-for-semantics:
+    /// The design-system fixture round-trips byte-for-semantics:
     /// `parse(emit(scene)) == scene`.
     #[test]
     fn round_trip_design_system() {
-        let input = include_str!("../../examples/design-system.strok");
-        let scene = dsl_parse::parse_file(input).expect("design-system example parses");
+        let input = include_str!("../../test-fixtures/design-system.strok");
+        let scene = dsl_parse::parse_file(input).expect("design-system fixture parses");
         let output = emit_scene(&scene);
         let scene2 = dsl_parse::parse_file(&output)
             .unwrap_or_else(|e| panic!("design-system re-emit failed to parse: {e}\n{output}"));

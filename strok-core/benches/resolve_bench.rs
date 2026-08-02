@@ -22,13 +22,13 @@ fn synthetic_doc(n: usize) -> String {
 }
 
 fn bench_resolve(c: &mut Criterion) {
-    // Representative single doc (one of the examples, parsed once).
+    // Representative single document, parsed once.
     let example = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../examples/rose-v3.strok"
+        "/../test-fixtures/rose-v3.strok"
     ))
-    .expect("example exists");
-    let example_scene = parse_file(&example).expect("example parses");
+    .expect("fixture exists");
+    let example_scene = parse_file(&example).expect("fixture parses");
 
     c.bench_function("resolve_example_rose", |b| {
         b.iter(|| resolve_scene(black_box(&example_scene)))

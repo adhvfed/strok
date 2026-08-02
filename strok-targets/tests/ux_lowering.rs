@@ -321,7 +321,7 @@ fn dtcg_is_registered() {
 /// full-document `<svg>`.
 #[test]
 fn component_internal_geometry_resolves() {
-    let src = include_str!("../../examples/design-system.strok");
+    let src = include_str!("../../test-fixtures/design-system.strok");
     let scene = strok_core::dsl_parse::parse_file(src).unwrap();
     let react = strok_targets::target_by_id("react")
         .unwrap()
@@ -346,12 +346,12 @@ fn component_internal_geometry_resolves() {
     );
 }
 
-/// The design-system example emits to every framework target
+/// The design-system fixture emits to every framework target
 /// end-to-end, with cross-backend parity and the right artifact shapes.
 #[test]
 fn design_system_emits_end_to_end() {
-    let src = include_str!("../../examples/design-system.strok");
-    let scene = strok_core::dsl_parse::parse_file(src).expect("design-system example parses");
+    let src = include_str!("../../test-fixtures/design-system.strok");
+    let scene = strok_core::dsl_parse::parse_file(src).expect("design-system fixture parses");
     let opts = strok_targets::EmitOptions::default();
 
     for id in ["react", "solid", "vanilla", "tailwind", "dtcg"] {

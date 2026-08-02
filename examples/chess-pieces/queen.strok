@@ -1,0 +1,90 @@
+# @meaning Queen chess piece
+# @tags chess, piece, queen, crown, staunton, game
+documentsize 45x45
+
+palette
+  piece-fill #f7f3ea
+  piece-shade #cfc0a3
+  piece-detail #3a352e
+scheme white
+  piece-fill #f7f3ea
+  piece-shade #cfc0a3
+  piece-detail #3a352e
+scheme black
+  piece-fill #302b26
+  piece-shade #17130f
+  piece-detail #0d0b09
+
+defaults
+  fill $piece-fill
+  stroke none
+
+# Five broad points form a low, balanced crown. The deeper central point gives
+# the queen height, while the shallower side valleys keep the rays from reading
+# as needles. Only the outside walls curve; the inner facets remain crisp.
+shape crown template=path
+  addpoint left-base at=15.2,19.4
+  addpoint outer-left-tip at=12.8,10.4 after=left-base mode=controls c1=14.6,15.7 c2=13.5,12.1
+  addpoint outer-left-valley at=16.0,13.6 after=outer-left-tip
+  addpoint inner-left-tip at=17.7,7.4 after=outer-left-valley
+  addpoint inner-left-valley at=20.0,12.5 after=inner-left-tip
+  addpoint center-tip at=22.5,4.4 after=inner-left-valley
+  addpoint inner-right-valley at=25.0,12.5 after=center-tip
+  addpoint inner-right-tip at=27.3,7.4 after=inner-right-valley
+  addpoint outer-right-valley at=29.0,13.6 after=inner-right-tip
+  addpoint outer-right-tip at=32.2,10.4 after=outer-right-valley
+  addpoint right-base at=29.8,19.4 after=outer-right-tip mode=controls c1=31.5,12.1 c2=30.4,15.7
+  addpoint base-return at=15.2,19.4 after=right-base
+  close
+
+shape orb template=ellipse
+
+shape stem template=path
+  addpoint top-left at=18.3,21.4
+  addpoint top-right at=26.7,21.4 after=top-left
+  addpoint waist-right at=25.8,28.4 after=top-right mode=controls c1=26.7,24.1 c2=25.8,26.3
+  addpoint foot-right at=30.5,33.5 after=waist-right mode=controls c1=25.8,30.5 c2=29.1,32.6
+  addpoint foot-left at=14.5,33.5 after=foot-right
+  addpoint waist-left at=19.2,28.4 after=foot-left mode=controls c1=15.9,32.6 c2=19.2,30.5
+  addpoint top-return at=18.3,21.4 after=waist-left mode=controls c1=19.2,26.3 c2=18.3,24.1
+  close
+
+shape ring template=rectangle
+  round-corners 0.65
+
+# The lower collar joins the flared foot, so only its exposed top corners are
+# rounded. Square lower corners prevent a pinched boolean seam at the join.
+shape body-ring template=rectangle
+  round-corners tl=0.65 tr=0.65 br=0 bl=0
+
+shape foot template=path
+  addpoint top-left at=13.2,35.7
+  addpoint top-right at=31.8,35.7 after=top-left
+  addpoint bottom-right at=34.1,36.8 after=top-right
+  addpoint bottom-left at=10.9,36.8 after=bottom-right
+  close
+
+shape plinth template=rectangle
+  round-corners 0.75
+
+boolean queen-silhouette op=union
+  place crown shape=crown at=0,0
+  place orb-left shape=orb at=11.65,9.25 size=2.3x2.3
+  place orb-inner-left shape=orb at=16.55,6.25 size=2.3x2.3
+  place orb-center shape=orb at=21.25,3.15 size=2.5x2.5
+  place orb-inner-right shape=orb at=26.15,6.25 size=2.3x2.3
+  place orb-right shape=orb at=31.05,9.25 size=2.3x2.3
+  place crown-ring shape=ring at=14.35,18.7 size=16.3x3.7
+  place stem shape=stem at=0,0
+  place body-ring shape=body-ring at=13.2,32.4 size=18.6x3.5
+  place foot shape=foot at=0,0
+  place plinth shape=plinth at=9.2,36.2 size=26.6x4.2
+  fill $piece-fill
+  stroke none
+
+shape shadow-band template=rectangle
+  fill $piece-shade
+
+place crown-shadow shape=shadow-band at=14.55,21.3 size=15.9x0.65 clip=queen-silhouette
+place body-shadow shape=shadow-band at=13.4,34.75 size=18.2x0.65 clip=queen-silhouette
+place plinth-shadow shape=shadow-band at=9.8,38.85 size=25.4x0.8 clip=queen-silhouette

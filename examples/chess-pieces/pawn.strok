@@ -1,0 +1,64 @@
+# @meaning Pawn chess piece
+# @tags chess, piece, pawn, staunton, game
+documentsize 45x45
+
+palette
+  piece-fill #f7f3ea
+  piece-shade #cfc0a3
+  piece-detail #3a352e
+scheme white
+  piece-fill #f7f3ea
+  piece-shade #cfc0a3
+  piece-detail #3a352e
+scheme black
+  piece-fill #302b26
+  piece-shade #17130f
+  piece-detail #0d0b09
+
+defaults
+  fill $piece-fill
+  stroke none
+
+# A compact Staunton pawn: one spherical head over a pinched, bell-shaped stem.
+shape head template=ellipse
+
+shape stem template=path
+  addpoint top-left at=19.3,17.5
+  addpoint top-right at=25.7,17.5 after=top-left
+  addpoint waist-right at=25.2,24.6 after=top-right mode=controls c1=25.8,20.3 c2=24.8,22.6
+  addpoint shoulder-right at=28.6,30.7 after=waist-right mode=controls c1=25.5,27 c2=27.6,29.4
+  addpoint foot-right at=29.4,32 after=shoulder-right mode=controls c1=28.9,31.2 c2=29.2,31.7
+  addpoint foot-left at=15.6,32 after=foot-right
+  addpoint shoulder-left at=16.4,30.7 after=foot-left mode=controls c1=15.8,31.7 c2=16.1,31.2
+  addpoint waist-left at=19.8,24.6 after=shoulder-left mode=controls c1=17.4,29.4 c2=19.5,27
+  addpoint top-return at=19.3,17.5 after=waist-left mode=controls c1=20.2,22.6 c2=19.2,20.3
+  close
+
+shape collar template=rectangle
+  round-corners 0.65
+
+shape foot template=path
+  addpoint top-left at=14,33.8
+  addpoint top-right at=31,33.8 after=top-left
+  addpoint bottom-right at=33.2,36.6 after=top-right
+  addpoint bottom-left at=11.8,36.6 after=bottom-right
+  close
+
+shape plinth template=rectangle
+  round-corners 0.75
+
+boolean pawn-silhouette op=union
+  place head shape=head at=18,9.2 size=9x9
+  place stem shape=stem at=0,0
+  place collar shape=collar at=17.2,16.5 size=10.6x3.2
+  place body-ring shape=collar at=13.2,30.9 size=18.6x3.6
+  place foot shape=foot at=0,0
+  place plinth shape=plinth at=10.4,36.2 size=24.2x4.2
+  fill $piece-fill
+  stroke none
+
+shape shadow-band template=rectangle
+  fill $piece-shade
+
+place body-shadow shape=shadow-band at=13.4,33.25 size=18.2x0.7 clip=pawn-silhouette
+place plinth-shadow shape=shadow-band at=10.9,38.85 size=23.2x0.8 clip=pawn-silhouette

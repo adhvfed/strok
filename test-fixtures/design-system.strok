@@ -1,11 +1,11 @@
 # Luma UI — one token source rendered as a product surface and emitted to code.
 #
-#   strok -f examples/design-system.strok render --out examples/design-system.png
-#   strok -f examples/design-system.strok emit react   --out out/react
-#   strok -f examples/design-system.strok emit solid   --out out/solid
-#   strok -f examples/design-system.strok emit vanilla --out out/vanilla
-#   strok -f examples/design-system.strok emit tailwind --out out/theme
-#   strok -f examples/design-system.strok emit dtcg    --out out/tokens
+#   strok -f test-fixtures/design-system.strok render --out /tmp/design-system.png
+#   strok -f test-fixtures/design-system.strok emit react   --out out/react
+#   strok -f test-fixtures/design-system.strok emit solid   --out out/solid
+#   strok -f test-fixtures/design-system.strok emit vanilla --out out/vanilla
+#   strok -f test-fixtures/design-system.strok emit tailwind --out out/theme
+#   strok -f test-fixtures/design-system.strok emit dtcg    --out out/tokens
 documentsize 720x480
 
 palette

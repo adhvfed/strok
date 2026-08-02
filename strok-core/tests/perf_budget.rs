@@ -24,9 +24,9 @@ fn synthetic_doc(n: usize) -> String {
 fn single_render_is_sub_second() {
     let src = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../examples/rose-v3.strok"
+        "/../test-fixtures/rose-v3.strok"
     ))
-    .expect("example exists");
+    .expect("fixture exists");
     let scene = parse_file(&src).expect("parses");
     let t0 = Instant::now();
     let svg = resolve_scene(&scene);

@@ -1,0 +1,67 @@
+documentsize 45x45
+
+palette
+  piece-fill #f7f3ea
+  piece-shade #cfc0a3
+  piece-detail #3a352e
+
+scheme white
+  piece-fill #f7f3ea
+  piece-shade #cfc0a3
+  piece-detail #3a352e
+
+scheme black
+  piece-fill #302b26
+  piece-shade #17130f
+  piece-detail #0d0b09
+
+defaults
+  fill $piece-fill
+  stroke none
+
+shape horse-profile template=path
+  addpoint front-base at=14.5,32
+  addpoint throat-low at=15.4,27.9 after=front-base mode=controls c1=14.7,30.7 c2=15,29.3
+  addpoint throat-high at=17.65,22.5 after=throat-low mode=controls c1=15.9,26.2 c2=17,23.6
+  addpoint jaw at=18.65,19.35 after=throat-high mode=controls c1=18.25,21.3 c2=18.65,20.15
+  addpoint lower-muzzle at=13.6,21.55 after=jaw mode=controls c1=17.85,20.45 c2=14.75,21.75
+  addpoint nose-bottom at=11.35,20.5 after=lower-muzzle mode=controls c1=12.55,21.5 c2=11.7,21
+  addpoint nose-front at=10.85,19.05 after=nose-bottom mode=controls c1=11,20.05 c2=10.8,19.55
+  addpoint nose-top at=11.75,17.75 after=nose-front mode=controls c1=10.85,18.55 c2=11.2,18.1
+  addpoint bridge at=14.75,15.45 after=nose-top mode=controls c1=12.75,17.15 c2=13.75,16.3
+  addpoint brow at=17.45,13 after=bridge mode=controls c1=15.8,14.55 c2=16.75,13.65
+  addpoint ear-root-front at=18.65,11.25 after=brow mode=controls c1=17.95,12.55 c2=18.35,11.8
+  addpoint ear-tip-front at=17.85,8.8 after=ear-root-front mode=controls c1=18.55,10.2 c2=18.1,9
+  addpoint ear-tip-back at=18.4,8.55 after=ear-tip-front mode=controls c1=18,8.6 c2=18.2,8.5
+  addpoint poll at=22.3411,10.7758 after=ear-tip-back mode=controls c1=19.35,8.8 c2=21.1149,10.5429
+  addpoint rear-base at=30.5,32 after=poll mode=controls c1=30.145,22.2943 c2=30.5,28.1215
+  close
+  addpoint p1 at=28.772,17.75 after=poll mode=controls c1=25.2037,11.3194 c2=27.6472,14.0274
+
+shape collar template=rectangle
+  round-corners 0.65
+
+shape foot template=path
+  addpoint top-left at=13.5,34.1
+  addpoint top-right at=31.5,34.1 after=top-left
+  addpoint bottom-right at=33.5,36.8 after=top-right
+  addpoint bottom-left at=11.5,36.8 after=bottom-right
+  close
+
+shape plinth template=rectangle
+  round-corners 0.75
+
+shape shadow-band template=rectangle
+  fill $piece-shade
+
+boolean knight-silhouette op=union
+  place horse shape=horse-profile at=0,0
+  place collar shape=collar at=12.7,31 size=19.6x3.5
+  place foot shape=foot at=0,0
+  place plinth shape=plinth at=9.7,36.2 size=25.6x4.2
+  fill $piece-fill
+  stroke none
+
+place collar-shadow shape=shadow-band at=12.9,33.35 size=19.2x0.75 clip=knight-silhouette
+
+place plinth-shadow shape=shadow-band at=10.3,38.85 size=24.4x0.8 clip=knight-silhouette

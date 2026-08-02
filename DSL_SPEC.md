@@ -723,8 +723,7 @@ parts (head vs. torso vs. limbs, table top vs. legs, …), because only shapes
 
 The library's source of truth lives in the repo at `std/<module>.strok` —
 ordinary `.strok` files (parsed by the same parser as everything else) baked
-into the binary via `include_str!` in `strok-core/src/stdlib.rs`. See
-`examples/std-library.strok` for a curated sampler of the embedded modules.
+into the binary via `include_str!` in `strok-core/src/stdlib.rs`.
 
 ---
 
@@ -745,8 +744,8 @@ exists). A `$font.<name>` reference also resolves to its token value in the
 *rendered* SVG, so font tokens flow to both the code/token emit and the canvas.
 The **`dtcg`** emit target writes the same generalized token system as a W3C DTCG
 `design-tokens.json` (`{"$value", "$type"}` grouped by category) for interop with
-Style Dictionary / Tokens Studio. The canonical end-to-end demo is
-`examples/design-system.strok`.
+Style Dictionary / Tokens Studio. The end-to-end fixture is
+`test-fixtures/design-system.strok`.
 
 ### `tokens` — generalized design tokens
 

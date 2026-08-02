@@ -1,0 +1,79 @@
+# @meaning Rook chess piece
+# @tags chess, piece, rook, castle, staunton, game
+documentsize 45x45
+
+palette
+  piece-fill #f7f3ea
+  piece-shade #cfc0a3
+  piece-detail #3a352e
+scheme white
+  piece-fill #f7f3ea
+  piece-shade #cfc0a3
+  piece-detail #3a352e
+scheme black
+  piece-fill #302b26
+  piece-shade #17130f
+  piece-detail #0d0b09
+
+defaults
+  fill $piece-fill
+  stroke none
+
+# Three broad merlons form a compact crown. The square notches stay crisp at
+# board size while the splayed outside walls give the parapet visual weight.
+shape crown template=path
+  addpoint top-left at=11.8,8.6
+  addpoint merlon-left-right at=16.8,8.6 after=top-left
+  addpoint merlon-left-bottom at=16.8,12.4 after=merlon-left-right
+  addpoint merlon-center-left at=20.1,12.4 after=merlon-left-bottom
+  addpoint merlon-center-top-left at=20.1,8.6 after=merlon-center-left
+  addpoint merlon-center-top-right at=24.9,8.6 after=merlon-center-top-left
+  addpoint merlon-center-bottom at=24.9,12.4 after=merlon-center-top-right
+  addpoint merlon-right-left at=28.2,12.4 after=merlon-center-bottom
+  addpoint merlon-right-top at=28.2,8.6 after=merlon-right-left
+  addpoint top-right at=33.2,8.6 after=merlon-right-top
+  addpoint bottom-right at=31.3,14.6 after=top-right
+  addpoint bottom-left at=13.7,14.6 after=bottom-right
+  close
+
+# A shallow hourglass replaces the previous straight-sided taper. Each side is
+# one continuous curve, with enough flare at the foot to feel lathe-turned.
+shape tower template=path
+  addpoint top-left at=14.0,15.0
+  addpoint top-right at=31.0,15.0 after=top-left
+  addpoint waist-right at=27.6,25.2 after=top-right mode=controls c1=30.2,18.5 c2=28.0,22.5
+  addpoint foot-right at=29.5,31.3 after=waist-right mode=controls c1=27.5,27.5 c2=28.4,29.8
+  addpoint foot-left at=15.5,31.3 after=foot-right
+  addpoint waist-left at=17.4,25.2 after=foot-left mode=controls c1=16.6,29.8 c2=17.5,27.5
+  addpoint top-return at=14.0,15.0 after=waist-left mode=controls c1=17.0,22.5 c2=14.8,18.5
+  close
+
+shape ring template=rectangle
+  round-corners 0.45
+
+shape foot template=path
+  addpoint top-left at=13.4,33.7
+  addpoint top-right at=31.6,33.7 after=top-left
+  addpoint bottom-right at=33.7,36.7 after=top-right
+  addpoint bottom-left at=11.3,36.7 after=bottom-right
+  close
+
+shape plinth template=rectangle
+  round-corners 0.7
+
+boolean rook-silhouette op=union
+  place crown shape=crown at=0,0
+  place tower shape=tower at=0,0
+  place parapet-ring shape=ring at=12.6,13.6 size=19.8x3.3
+  place body-ring shape=ring at=13.3,30.0 size=18.4x3.8
+  place foot shape=foot at=0,0
+  place plinth shape=plinth at=9.7,36.2 size=25.6x4.2
+  fill $piece-fill
+  stroke none
+
+shape shadow-band template=rectangle
+  fill $piece-shade
+
+place parapet-shadow shape=shadow-band at=12.8,15.9 size=19.4x0.65 clip=rook-silhouette
+place body-shadow shape=shadow-band at=13.5,32.45 size=18x0.7 clip=rook-silhouette
+place plinth-shadow shape=shadow-band at=10.3,38.85 size=24.4x0.8 clip=rook-silhouette
