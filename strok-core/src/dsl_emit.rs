@@ -912,6 +912,44 @@ place glow shape=glow at=100,100 size=200x200
     }
 
     #[test]
+    fn round_trip_parametric_templates() {
+        let input = "\
+documentsize 100x100
+
+shape hex template=polygon sides=6
+
+shape burst template=star points=4 inner=0.38
+
+shape curl template=spiral turns=2.5
+
+shape gauge template=arc from=-45 to=225
+
+place hex shape=hex at=0,0 size=40x40
+";
+        let scene = dsl_parse::parse_file(input).unwrap();
+        let output = emit_scene(&scene);
+        // Byte-stable: parameters round-trip verbatim on the shape line.
+        assert!(
+            output.contains("shape hex template=polygon sides=6"),
+            "{output}"
+        );
+        assert!(
+            output.contains("shape burst template=star points=4 inner=0.38"),
+            "{output}"
+        );
+        assert!(
+            output.contains("shape curl template=spiral turns=2.5"),
+            "{output}"
+        );
+        assert!(
+            output.contains("shape gauge template=arc from=-45 to=225"),
+            "{output}"
+        );
+        let scene2 = dsl_parse::parse_file(&output).unwrap();
+        assert_eq!(scene.shapes, scene2.shapes);
+    }
+
+    #[test]
     fn round_trip_linear_gradient() {
         let input = "\
 documentsize 400x400

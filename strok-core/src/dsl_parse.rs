@@ -599,12 +599,25 @@ fn parse_shape_line(line: &Line, body: &[Line], env: &Env) -> Result<Shape> {
     crate::types::validate_ident(name)
         .map_err(|e| parse_err(line, &format!("invalid shape name: {e}")))?;
 
-    let mut template = Template::Path; // default
+    // Collect the template name and any template parameters (e.g.
+    // `template=polygon sides=6`). Unknown tokens are errors — a silently
+    // ignored `insner=0.4` typo would otherwise produce a default shape.
+    let mut template_name: Option<String> = None;
+    let mut params: Vec<(String, String)> = Vec::new();
     for token in &line.tokens[2..] {
         if let Some(val) = token.strip_prefix("template=") {
-            template = Template::parse(val)?;
+            template_name = Some(val.to_string());
+        } else if let Some((key, value)) = token.split_once('=') {
+            params.push((key.to_string(), value.to_string()));
+        } else {
+            return Err(parse_err(
+                line,
+                &format!("unexpected token '{}' on shape line", token),
+            ));
         }
     }
+    let template = Template::parse_with_params(template_name.as_deref().unwrap_or("path"), &params)
+        .map_err(|e| parse_err(line, &e.to_string()))?;
 
     let mut shape = Shape::new(name, template);
 

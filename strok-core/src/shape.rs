@@ -7,7 +7,9 @@ use crate::types::*;
 
 // ── Templates ─────────────────────────────────────────────────────────
 
-/// Base geometric template. Defines initial points and topology.
+/// Base geometric template. Defines initial points and topology. The
+/// parametric templates (polygon/star/spiral/arc) carry their parameters
+/// here; they live on the `shape` line and round-trip verbatim.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Template {
     Rectangle,
@@ -16,27 +18,133 @@ pub enum Template {
     Line,
     Path,
     Text,
+    /// Regular N-gon inscribed in the authored box, first vertex at 12
+    /// o'clock, clockwise. Points `v1..vN`.
+    Polygon {
+        sides: u32,
+    },
+    /// 2K alternating outer/inner vertices (star burst). Points interleave
+    /// `tip1, dip1, tip2, …`; `inner` is the inner radius as a fraction of
+    /// the outer.
+    Star {
+        points: u32,
+        inner: f64,
+    },
+    /// Geometric spiral of tangent-continuous semicircular half-turns, all
+    /// endpoints on the horizontal midline. Open. Points `start, turn1, …,
+    /// end`.
+    Spiral {
+        turns: f64,
+    },
+    /// Open elliptical arc segment. Angles in degrees, 0° at 12 o'clock,
+    /// clockwise positive, drawn from `from` to `to`. Points `start,
+    /// mid1, …, end`.
+    Arc {
+        from: f64,
+        to: f64,
+    },
 }
 
 impl Template {
     pub fn parse(s: &str) -> crate::error::Result<Self> {
-        match s {
-            "rectangle" => Ok(Template::Rectangle),
-            "ellipse" => Ok(Template::Ellipse),
-            "triangle" => Ok(Template::Triangle),
-            "line" => Ok(Template::Line),
-            "path" => Ok(Template::Path),
-            "text" => Ok(Template::Text),
-            _ => Err(crate::error::StrokError::ParseError(format!(
-                "unknown template '{}' — valid templates: rectangle, ellipse, triangle, line, path, text",
-                s
-            ))),
+        Self::parse_with_params(s, &[])
+    }
+
+    /// Parse a template name plus its `key=value` shape-line parameters.
+    /// Unknown names and parameters, and out-of-range values, are errors —
+    /// a silently-defaulted `insner=0.4` typo is worse than a diagnostic.
+    pub fn parse_with_params(s: &str, params: &[(String, String)]) -> crate::error::Result<Self> {
+        let err = |msg: String| Err(crate::error::StrokError::ParseError(msg));
+        let mut template = match s {
+            "rectangle" => Template::Rectangle,
+            "ellipse" => Template::Ellipse,
+            "triangle" => Template::Triangle,
+            "line" => Template::Line,
+            "path" => Template::Path,
+            "text" => Template::Text,
+            "polygon" => Template::Polygon { sides: 6 },
+            "star" => Template::Star {
+                points: 5,
+                inner: 0.4,
+            },
+            "spiral" => Template::Spiral { turns: 2.0 },
+            "arc" => Template::Arc {
+                from: 0.0,
+                to: 270.0,
+            },
+            _ => {
+                return err(format!(
+                    "unknown template '{}' — valid templates: rectangle, ellipse, triangle, line, path, text, polygon, star, spiral, arc",
+                    s
+                ));
+            }
+        };
+        for (key, value) in params {
+            match (&mut template, key.as_str()) {
+                (Template::Polygon { sides }, "sides") => {
+                    *sides = match value.parse() {
+                        Ok(n) if (3..=64).contains(&n) => n,
+                        _ => return err(format!("polygon sides must be 3..64, got '{}'", value)),
+                    };
+                }
+                (Template::Star { points, .. }, "points") => {
+                    *points = match value.parse() {
+                        Ok(n) if (3..=32).contains(&n) => n,
+                        _ => return err(format!("star points must be 3..32, got '{}'", value)),
+                    };
+                }
+                (Template::Star { inner, .. }, "inner") => {
+                    *inner = match value.parse::<f64>() {
+                        Ok(f) if f > 0.0 && f < 1.0 => f,
+                        _ => {
+                            return err(format!(
+                                "star inner must be between 0 and 1 (exclusive), got '{}'",
+                                value
+                            ));
+                        }
+                    };
+                }
+                (Template::Spiral { turns }, "turns") => {
+                    *turns = match value.parse::<f64>() {
+                        Ok(t) if t > 0.0 && t <= 12.0 => t,
+                        _ => return err(format!("spiral turns must be 0..12, got '{}'", value)),
+                    };
+                }
+                (Template::Arc { from, .. }, "from") => {
+                    *from = match value.parse::<f64>() {
+                        Ok(a) if a.is_finite() => a,
+                        _ => return err(format!("arc from must be an angle, got '{}'", value)),
+                    };
+                }
+                (Template::Arc { to, .. }, "to") => {
+                    *to = match value.parse::<f64>() {
+                        Ok(a) if a.is_finite() => a,
+                        _ => return err(format!("arc to must be an angle, got '{}'", value)),
+                    };
+                }
+                _ => {
+                    return err(format!(
+                        "unknown shape attribute '{}' for template '{}'",
+                        key, s
+                    ));
+                }
+            }
         }
+        if let Template::Arc { from, to } = &template {
+            if (to - from).rem_euclid(360.0) == 0.0 {
+                return err(format!(
+                    "arc from={} to={} spans nothing — from and to must differ (mod 360)",
+                    from, to
+                ));
+            }
+        }
+        Ok(template)
     }
 }
 
 impl std::fmt::Display for Template {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use crate::types::fmt_num;
         match self {
             Template::Rectangle => write!(f, "rectangle"),
             Template::Ellipse => write!(f, "ellipse"),
@@ -44,6 +152,14 @@ impl std::fmt::Display for Template {
             Template::Line => write!(f, "line"),
             Template::Path => write!(f, "path"),
             Template::Text => write!(f, "text"),
+            Template::Polygon { sides } => write!(f, "polygon sides={}", sides),
+            Template::Star { points, inner } => {
+                write!(f, "star points={} inner={}", points, fmt_num(*inner))
+            }
+            Template::Spiral { turns } => write!(f, "spiral turns={}", fmt_num(*turns)),
+            Template::Arc { from, to } => {
+                write!(f, "arc from={} to={}", fmt_num(*from), fmt_num(*to))
+            }
         }
     }
 }
@@ -1148,8 +1264,175 @@ impl Shape {
                 closed: false,
                 subpath_starts: Vec::new(),
             },
+            Template::Polygon { sides } => {
+                let (cx, cy) = (coord_space.0 / 2.0, coord_space.1 / 2.0);
+                let points = (0..sides)
+                    .map(|i| {
+                        let (x, y) = clock_point(cx, cy, i as f64 * 360.0 / sides as f64);
+                        NamedPoint {
+                            name: format!("v{}", i + 1),
+                            x,
+                            y,
+                            mode: CurveMode::Sharp,
+                        }
+                    })
+                    .collect();
+                PathData {
+                    coord_space,
+                    points,
+                    closed: true,
+                    subpath_starts: Vec::new(),
+                }
+            }
+            Template::Star { points, inner } => {
+                let (cx, cy) = (coord_space.0 / 2.0, coord_space.1 / 2.0);
+                let step = 360.0 / points as f64;
+                let mut named = Vec::with_capacity(points as usize * 2);
+                for i in 0..points {
+                    let (x, y) = clock_point(cx, cy, i as f64 * step);
+                    named.push(NamedPoint {
+                        name: format!("tip{}", i + 1),
+                        x,
+                        y,
+                        mode: CurveMode::Sharp,
+                    });
+                    let (ix, iy) = clock_point(cx, cy, (i as f64 + 0.5) * step);
+                    named.push(NamedPoint {
+                        name: format!("dip{}", i + 1),
+                        x: cx + (ix - cx) * inner,
+                        y: cy + (iy - cy) * inner,
+                        mode: CurveMode::Sharp,
+                    });
+                }
+                PathData {
+                    coord_space,
+                    points: named,
+                    closed: true,
+                    subpath_starts: Vec::new(),
+                }
+            }
+            Template::Spiral { turns } => {
+                // A 3/4 outer sweep (top → bottom → left, clockwise) followed
+                // by tangent-continuous semicircular half-turns along the
+                // horizontal midline, radii shrinking linearly toward the
+                // center. The outer sweep touches all four box edges, so the
+                // bounding box matches the authored box and its aspect matches
+                // the arcs' — a square placement keeps the turns circular
+                // instead of bbox-stretching them into ovals.
+                let inner_half_turns = (((turns - 0.75) * 2.0).round() as usize).max(1);
+                let (rx0, ry0) = (coord_space.0 / 2.0, coord_space.1 / 2.0);
+                let (cx, cy) = (rx0, ry0);
+                let arc = |rx: f64, ry: f64| CurveMode::Arc {
+                    rx,
+                    ry,
+                    sweep: true,
+                    large: false,
+                };
+                let mut named = vec![
+                    NamedPoint {
+                        name: "start".to_string(),
+                        x: cx,
+                        y: 0.0,
+                        mode: CurveMode::Sharp,
+                    },
+                    NamedPoint {
+                        name: "turn1".to_string(),
+                        x: cx,
+                        y: cy + ry0,
+                        mode: arc(rx0, ry0),
+                    },
+                    NamedPoint {
+                        name: "turn2".to_string(),
+                        x: cx - rx0,
+                        y: cy,
+                        mode: arc(rx0, ry0),
+                    },
+                ];
+                let (ux, uy) = (
+                    rx0 / (inner_half_turns + 1) as f64,
+                    ry0 / (inner_half_turns + 1) as f64,
+                );
+                let mut x = cx - rx0;
+                let mut dir = 1.0;
+                for k in 0..inner_half_turns {
+                    let remaining = (inner_half_turns - k) as f64;
+                    x += dir * 2.0 * ux * remaining;
+                    dir = -dir;
+                    let name = if k + 1 == inner_half_turns {
+                        "end".to_string()
+                    } else {
+                        format!("turn{}", k + 3)
+                    };
+                    named.push(NamedPoint {
+                        name,
+                        x,
+                        y: cy,
+                        mode: arc(ux * remaining, uy * remaining),
+                    });
+                }
+                PathData {
+                    coord_space,
+                    points: named,
+                    closed: false,
+                    subpath_starts: Vec::new(),
+                }
+            }
+            Template::Arc { from, to } => {
+                let (cx, cy) = (coord_space.0 / 2.0, coord_space.1 / 2.0);
+                let span = {
+                    let s = (to - from).rem_euclid(360.0);
+                    if s == 0.0 {
+                        360.0
+                    } else {
+                        s
+                    }
+                };
+                // Split spans over 120° so every emitted arc segment stays
+                // well-conditioned (and under the 180° large-arc ambiguity).
+                let segments = (span / 120.0).ceil().max(1.0) as usize;
+                let (sx, sy) = clock_point(cx, cy, from);
+                let mut named = vec![NamedPoint {
+                    name: "start".to_string(),
+                    x: sx,
+                    y: sy,
+                    mode: CurveMode::Sharp,
+                }];
+                for i in 1..=segments {
+                    let (x, y) = clock_point(cx, cy, from + span * i as f64 / segments as f64);
+                    let name = if i == segments {
+                        "end".to_string()
+                    } else {
+                        format!("mid{}", i)
+                    };
+                    named.push(NamedPoint {
+                        name,
+                        x,
+                        y,
+                        mode: CurveMode::Arc {
+                            rx: cx,
+                            ry: cy,
+                            sweep: true,
+                            large: false,
+                        },
+                    });
+                }
+                PathData {
+                    coord_space,
+                    points: named,
+                    closed: false,
+                    subpath_starts: Vec::new(),
+                }
+            }
         }
     }
+}
+
+/// Point on the ellipse inscribed in the box centered at (cx, cy) with radii
+/// (cx, cy), at `angle` degrees measured from 12 o'clock, clockwise — the
+/// design-facing angle convention shared by polygon, star, and arc templates.
+fn clock_point(cx: f64, cy: f64, angle: f64) -> (f64, f64) {
+    let theta = (angle - 90.0).to_radians();
+    (cx + cx * theta.cos(), cy + cy * theta.sin())
 }
 
 /// Convert the curve mode of the named point in place, preserving its position
@@ -1566,6 +1849,140 @@ mod tests {
         }));
         let pd = s.resolve((100.0, 100.0));
         assert_eq!(pd.points.len(), 1); // unchanged, no panic
+    }
+
+    #[test]
+    fn polygon_template_generates_regular_ngon() {
+        let s = Shape::new("hex", Template::Polygon { sides: 6 });
+        let pd = s.resolve((100.0, 100.0));
+        assert_eq!(pd.points.len(), 6);
+        assert!(pd.closed);
+        assert_eq!(pd.points[0].name, "v1");
+        // First vertex at 12 o'clock.
+        assert!((pd.points[0].x - 50.0).abs() < 1e-9);
+        assert!(pd.points[0].y.abs() < 1e-9);
+        // Every vertex on the inscribed circle (square box).
+        for p in &pd.points {
+            let r = ((p.x - 50.0).powi(2) + (p.y - 50.0).powi(2)).sqrt();
+            assert!((r - 50.0).abs() < 1e-9, "{}: r={}", p.name, r);
+        }
+        // Second vertex is clockwise of the first (to the right).
+        assert!(pd.points[1].x > pd.points[0].x);
+    }
+
+    #[test]
+    fn star_template_alternates_tip_and_dip_radii() {
+        let s = Shape::new(
+            "burst",
+            Template::Star {
+                points: 4,
+                inner: 0.5,
+            },
+        );
+        let pd = s.resolve((100.0, 100.0));
+        assert_eq!(pd.points.len(), 8);
+        assert!(pd.closed);
+        let names: Vec<&str> = pd.points.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names[0], "tip1");
+        assert_eq!(names[1], "dip1");
+        for p in &pd.points {
+            let r = ((p.x - 50.0).powi(2) + (p.y - 50.0).powi(2)).sqrt();
+            let expected = if p.name.starts_with("tip") {
+                50.0
+            } else {
+                25.0
+            };
+            assert!((r - expected).abs() < 1e-9, "{}: r={}", p.name, r);
+        }
+    }
+
+    #[test]
+    fn spiral_template_touches_all_four_sides_with_circular_arcs() {
+        let s = Shape::new("curl", Template::Spiral { turns: 1.5 });
+        let pd = s.resolve((100.0, 100.0));
+        // 3/4 outer sweep (start, turn1, turn2) + 2 inner half-turns.
+        assert_eq!(pd.points.len(), 5);
+        assert!(!pd.closed);
+        assert_eq!(pd.points[0].name, "start");
+        assert_eq!(pd.points.last().unwrap().name, "end");
+        // The outer sweep pins the bounding box to the authored box: top,
+        // bottom, and left edges via its endpoints, right edge via the arc's
+        // rightmost extent. That is what keeps a square placement from
+        // stretching the turns into ovals (the field-report bug).
+        assert_eq!((pd.points[0].x, pd.points[0].y), (50.0, 0.0)); // top
+        assert_eq!((pd.points[1].x, pd.points[1].y), (50.0, 100.0)); // bottom
+        assert_eq!((pd.points[2].x, pd.points[2].y), (0.0, 50.0)); // left
+        let mut previous_rx = f64::INFINITY;
+        for p in &pd.points[1..] {
+            assert!(p.x >= -1e-9 && p.x <= 100.0 + 1e-9, "{} out of box", p.name);
+            match p.mode {
+                CurveMode::Arc {
+                    rx,
+                    ry,
+                    sweep,
+                    large,
+                } => {
+                    assert!(rx <= previous_rx, "radii must not grow");
+                    assert!((rx - ry).abs() < 1e-9, "square box ⇒ circular arcs");
+                    assert!(sweep, "clockwise throughout");
+                    assert!(!large);
+                    previous_rx = rx;
+                }
+                _ => panic!("{} should be an arc point", p.name),
+            }
+        }
+        // Inner points sit on the horizontal midline.
+        for p in &pd.points[3..] {
+            assert!((p.y - 50.0).abs() < 1e-9, "{} off the midline", p.name);
+        }
+    }
+
+    #[test]
+    fn arc_template_splits_long_spans_and_honors_clock_angles() {
+        let s = Shape::new(
+            "gauge",
+            Template::Arc {
+                from: 0.0,
+                to: 270.0,
+            },
+        );
+        let pd = s.resolve((100.0, 100.0));
+        // 270° ⇒ 3 segments ⇒ start + mid1 + mid2 + end.
+        assert_eq!(pd.points.len(), 4);
+        assert!(!pd.closed);
+        assert_eq!(pd.points[0].name, "start");
+        assert_eq!(pd.points[1].name, "mid1");
+        assert_eq!(pd.points.last().unwrap().name, "end");
+        // 0° = 12 o'clock; 270° clockwise = 9 o'clock.
+        assert!((pd.points[0].x - 50.0).abs() < 1e-9 && pd.points[0].y.abs() < 1e-9);
+        let end = pd.points.last().unwrap();
+        assert!(end.x.abs() < 1e-9 && (end.y - 50.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn parametric_templates_validate_their_params() {
+        let param = |k: &str, v: &str| vec![(k.to_string(), v.to_string())];
+        assert!(Template::parse_with_params("polygon", &param("sides", "2")).is_err());
+        assert!(Template::parse_with_params("polygon", &param("sides", "six")).is_err());
+        assert!(Template::parse_with_params("star", &param("inner", "1")).is_err());
+        assert!(Template::parse_with_params("star", &param("inner", "0")).is_err());
+        assert!(Template::parse_with_params("spiral", &param("turns", "0")).is_err());
+        assert!(Template::parse_with_params("spiral", &param("turns", "13")).is_err());
+        assert!(Template::parse_with_params("arc", &param("to", "0")).is_err()); // from=0 default
+        assert!(Template::parse_with_params("polygon", &param("points", "5")).is_err()); // wrong template
+        assert!(Template::parse_with_params("rectangle", &param("sides", "4")).is_err());
+        assert!(Template::parse_with_params("star", &param("insner", "0.4")).is_err());
+    }
+
+    #[test]
+    fn round_corners_composes_with_polygon_template() {
+        let mut s = Shape::new("hex", Template::Polygon { sides: 6 });
+        s.operations.push(Operation::RoundCorners {
+            radii: CornerRadii::uniform(6.0),
+        });
+        let pd = s.resolve((100.0, 100.0));
+        assert_eq!(pd.points.len(), 12); // every vertex filleted into in/out
+        assert!(pd.points.iter().any(|p| p.name == "v1-out"));
     }
 
     #[test]

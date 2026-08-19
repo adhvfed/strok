@@ -64,6 +64,33 @@ shape <name> template=<template>
 | `line` | start, end | no | Two endpoints |
 | `path` | (none) | no | Empty — you define all points with `addpoint` |
 | `text` | (none) | no | Text element — use `content`, `font-size`, etc. |
+| `polygon sides=N` | v1..vN | yes | Regular N-gon (3–64, default 6), first vertex at 12 o'clock, clockwise |
+| `star points=K inner=F` | tip1, dip1, … | yes | 2K alternating vertices (K 3–32, default 5); `inner` is the inner radius as a fraction of the outer (0–1 exclusive, default 0.4) |
+| `spiral turns=T` | start, turn1, …, end | no | Geometric spiral: a 3/4 outer sweep then shrinking half-turns (T 0–12, default 2, rounded to a constructible sweep); its bounding box fills the authored box, so square placements keep the turns circular. Give it a stroke |
+| `arc from=A to=B` | start, mid1, …, end | no | Open arc segment; degrees, 0° at 12 o'clock, clockwise from A to B (default 0→270) |
+
+The parametric templates (polygon/star/spiral/arc) carry their parameters on
+the `shape` line and round-trip verbatim. Geometry is inscribed in the
+authored box like `ellipse` (non-square boxes stretch elliptically), and the
+result is ordinary named points, so `round-corners`, `movepoint`, `notch`,
+and point editing all compose:
+
+```
+shape hex template=polygon sides=6
+  round-corners 5                     # a soft hexagon badge
+  fill $panel
+
+shape burst template=star points=4 inner=0.38
+  fill $accent                        # a four-point sparkle in one line
+
+shape gauge template=arc from=-135 to=135
+  stroke $accent
+  stroke-width 4
+  stroke-linecap round                # a 270° gauge sweep
+```
+
+Unknown `key=value` tokens on a `shape` line are parse errors (a typo like
+`insner=0.4` would otherwise silently produce a default shape).
 
 ### Geometry Operations
 
