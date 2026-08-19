@@ -10,7 +10,7 @@ readme.workspace = true
 description = "Deterministic SVG and PNG rendering for Strøk documents"
 
 [dependencies]
-strok-core = { version = "0.1.0", path = "../strok-core" }
+strok-core = { version = "0.2.0", path = "../strok-core" }
 resvg = { workspace = true }
 thiserror = "2"
 # Used by the perceptual diff comparator (E3.3), shared with the golden harness.

@@ -1139,7 +1139,7 @@ dependencies = [
 
 [[package]]
 name = "strok-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -1154,7 +1154,7 @@ dependencies = [
 
 [[package]]
 name = "strok-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bincode",
  "criterion",
@@ -1170,7 +1170,7 @@ dependencies = [
 
 [[package]]
 name = "strok-render"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "image",
  "insta",
@@ -1181,7 +1181,7 @@ dependencies = [
 
 [[package]]
 name = "strok-targets"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "strok-core",
 ]
@@ -1478,7 +1478,7 @@ checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 
 [[package]]
 name = "xtask"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "zerocopy"

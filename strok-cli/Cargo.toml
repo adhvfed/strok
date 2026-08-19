@@ -14,9 +14,9 @@ name = "strok"
 path = "src/main.rs"
 
 [dependencies]
-strok-core = { version = "0.1.0", path = "../strok-core" }
-strok-render = { version = "0.1.0", path = "../strok-render" }
-strok-targets = { version = "0.1.0", path = "../strok-targets" }
+strok-core = { version = "0.2.0", path = "../strok-core" }
+strok-render = { version = "0.2.0", path = "../strok-render" }
+strok-targets = { version = "0.2.0", path = "../strok-targets" }
 anyhow = "1.0.103"
 clap = { version = "4", features = ["derive"] }
 resvg = { workspace = true }

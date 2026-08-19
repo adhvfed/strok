@@ -10,7 +10,7 @@ readme.workspace = true
 description = "React, Solid, vanilla web, Tailwind, and DTCG emitters for Strøk"
 
 [dependencies]
-strok-core = { version = "0.1.0", path = "../strok-core" }
+strok-core = { version = "0.2.0", path = "../strok-core" }
 
 [lints]
 workspace = true
