@@ -84,13 +84,35 @@ fn run() -> Result<()> {
             port,
             scheme,
             no_open,
+            on_note,
         } => {
             let file = file.as_deref().or(cli.file.as_deref()).ok_or_else(|| {
                 anyhow::anyhow!(
                     "missing file to watch\n\nUsage: strok watch <file>   (or strok -f <file> watch)"
                 )
             })?;
-            watch::run(Path::new(file), *port, scheme.as_deref(), !no_open)?;
+            watch::run(
+                Path::new(file),
+                *port,
+                scheme.as_deref(),
+                !no_open,
+                on_note.as_deref(),
+            )?;
+        }
+
+        // Notes takes its file positionally (like `watch`) or via -f.
+        Command::Notes {
+            file,
+            json,
+            resolve,
+            clear,
+        } => {
+            let file = file.as_deref().or(cli.file.as_deref()).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "missing document\n\nUsage: strok notes <file>   (or strok -f <file> notes)"
+                )
+            })?;
+            notes_command(Path::new(file), *json, *resolve, *clear)?;
         }
 
         // `diff a.png b.png` needs no document file; `diff --since N` does and is
@@ -172,7 +194,8 @@ fn run() -> Result<()> {
                 | Command::AgentIntro
                 | Command::Guide { .. }
                 | Command::McpServer
-                | Command::Watch { .. } => {
+                | Command::Watch { .. }
+                | Command::Notes { .. } => {
                     unreachable!()
                 }
 
@@ -1247,10 +1270,26 @@ image at its real viewing size. Plan enough visual review for the requested bar.
    `.strok` file immediately and have browser undo/redo. Imported module shapes
    remain read-only, and broader scene composition remains file- and CLI-first.
 
-   Treat this as a source handoff: use one source writer at a time. While the user
-   reviews or edits in `watch`, do not make concurrent agent edits. When they hand
-   the file back, reread it, render the full frame, and rerun relevant inspection
-   and audit checks before continuing or declaring it finished.
+   The reviewer can pin feedback onto the render. Pins persist to
+   `<file>.notes.json` next to the document: each note has document
+   coordinates (`at`), optional placement name (`target`), and `text`. When
+   the user hands work back, CHECK THE NOTES FIRST; they are the review
+   feedback:
+
+   strok notes art.strok                 read pending notes
+   strok notes art.strok --resolve 2     mark note 2 addressed
+
+   Address one note at a time: fix, render, verify, then resolve. Watch
+   reloads the sidecar, so the user sees pins clear as you work. The preview
+   flashes the region your edit changed, so prefer focused edits over full
+   rewrites while being watched. (Over MCP the same loop is notes_list /
+   note_resolve; `watch --on-note <cmd>` can push each new note to you.)
+
+   Treat the source itself as a handoff: use one source writer at a time. While
+   the user reviews or edits in `watch`, do not make concurrent agent edits to
+   the `.strok` file (clearing addressed notes in the sidecar is fine). When
+   they hand the file back, reread it, render the full frame, and rerun relevant
+   inspection and audit checks before continuing or declaring it finished.
 
 6. FINISH WITH A VISUAL, NOT SYNTACTIC, GATE
 
@@ -1260,6 +1299,77 @@ image at its real viewing size. Plan enough visual review for the requested bar.
    visual quality gate. The work is done only when the rendered result meets the
    requested effort level without explanation.
 "#;
+
+/// `strok notes`: the CLI half of the watch review loop. Reads and resolves
+/// the `<file>.notes.json` sidecar; a running watch session reloads it, so
+/// resolving here clears the reviewer's pins live.
+fn notes_command(file: &Path, json: bool, resolve: Option<u64>, clear: bool) -> Result<()> {
+    let sidecar = watch::notes::sidecar_path(file);
+    let mut notes = watch::notes::load(&sidecar).ok_or_else(|| {
+        anyhow::anyhow!("'{}' does not parse as a notes sidecar", sidecar.display())
+    })?;
+    if clear {
+        let count = notes.len();
+        watch::notes::save(&sidecar, &[])?;
+        eprintln!("cleared {} note(s)", count);
+        return Ok(());
+    }
+    if let Some(id) = resolve {
+        let before = notes.len();
+        notes.retain(|note| note.id != id);
+        anyhow::ensure!(notes.len() < before, "no note with id {}", id);
+        watch::notes::save(&sidecar, &notes)?;
+        eprintln!("resolved note {} ({} remaining)", id, notes.len());
+        return Ok(());
+    }
+    // Listing is the read receipt: mark unread notes as seen so the
+    // reviewer's pins show the agent has them.
+    let unread = notes.iter().filter(|note| !note.ack).count();
+    if unread > 0 {
+        for note in &mut notes {
+            note.ack = true;
+        }
+        watch::notes::save(&sidecar, &notes)?;
+    }
+    if json {
+        print!(
+            "{}",
+            Json::obj([("notes", watch::notes::to_json(&notes))]).to_string_pretty()
+        );
+        return Ok(());
+    }
+    if notes.is_empty() {
+        println!("no pending notes for {}", file.display());
+        return Ok(());
+    }
+    println!("{} pending note(s) for {}:", notes.len(), file.display());
+    for note in &notes {
+        let target = note
+            .target
+            .as_deref()
+            .map(|t| format!(" on {}", t))
+            .unwrap_or_default();
+        println!(
+            "  {}.{} at {},{}: {}",
+            note.id,
+            target,
+            fmt_num_short(note.x),
+            fmt_num_short(note.y),
+            note.text
+        );
+    }
+    println!("resolve each addressed note with: strok notes <file> --resolve <id>");
+    Ok(())
+}
+
+fn fmt_num_short(value: f64) -> String {
+    let rounded = (value * 10.0).round() / 10.0;
+    if rounded.fract() == 0.0 {
+        format!("{}", rounded as i64)
+    } else {
+        format!("{:.1}", rounded)
+    }
+}
 
 pub fn agent_intro_text() -> &'static str {
     AGENT_INTRO

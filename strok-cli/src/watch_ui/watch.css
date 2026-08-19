@@ -146,6 +146,30 @@ html,
   font-variant-numeric: tabular-nums;
 }
 
+#histlabel {
+  min-width: 64px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+
+#histlabel.browsing {
+  border-color: #7a6434;
+  background: #38301c;
+  color: var(--control);
+}
+
+.toolbar .form-select {
+  width: auto;
+  max-width: 160px;
+  margin: 0;
+  padding: 4px 8px;
+}
+
+#coords {
+  min-width: 76px;
+  font: 12px/1.5 ui-monospace, monospace;
+}
+
 /* Errors and notifications */
 
 #errorbar {
@@ -162,6 +186,9 @@ html,
 
 #errorbar[hidden],
 #inspector[hidden],
+#notes-panel[hidden],
+#note-form[hidden],
+#scheme-select[hidden],
 #shape-tip[hidden] {
   display: none;
 }
@@ -247,6 +274,200 @@ html,
   border-top: 1px solid var(--edge);
 }
 
+/* Review notes */
+
+#notes-panel {
+  flex: none;
+  width: 252px;
+  overflow: auto;
+  padding: 18px 16px;
+  border-right: 1px solid var(--edge);
+  background: var(--panel);
+}
+
+#notes-file {
+  color: var(--dim);
+  font: 11px/1.4 ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}
+
+#notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.note-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 9px;
+  border: 1px solid var(--edge);
+  border-radius: 7px;
+  background: var(--raised);
+}
+
+.note-item .note-id {
+  flex: none;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--control);
+  color: #241a05;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.note-item .note-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.note-item .note-target {
+  display: block;
+  color: var(--dim);
+  font: 11px/1.4 ui-monospace, monospace;
+}
+
+.note-state {
+  display: block;
+  width: max-content;
+  margin-top: 5px;
+  padding: 0 6px;
+  border: 1px solid #7a6434;
+  border-radius: 999px;
+  color: var(--control);
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.note-state.seen {
+  border-color: #3f6b58;
+  color: var(--ok);
+}
+
+.note-item .note-remove {
+  flex: none;
+  min-height: 22px;
+  padding: 0 6px;
+  border: 0;
+  background: none;
+  color: var(--quiet);
+  font: inherit;
+  cursor: pointer;
+}
+
+.note-item .note-remove:hover {
+  color: var(--err);
+}
+
+.notes-empty {
+  color: var(--quiet);
+}
+
+.pin {
+  position: absolute;
+  z-index: 3;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  translate: -50% -50%;
+  border: 1.5px solid #241a05;
+  border-radius: 50%;
+  background: var(--control);
+  color: #241a05;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.pin.seen {
+  border-color: var(--control);
+  background: var(--panel);
+  color: var(--control);
+}
+
+.pin.pulse {
+  animation: pin-pulse 700ms ease-out 2;
+}
+
+@keyframes pin-pulse {
+  50% {
+    scale: 1.5;
+  }
+}
+
+#note-form {
+  position: fixed;
+  z-index: 6;
+}
+
+#note-input {
+  width: 240px;
+  padding: 6px 9px;
+  border: 1px solid var(--control);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+#stage.noting,
+#stage.noting .shape-target {
+  cursor: crosshair;
+}
+
+/* Region marquee and change flash */
+
+.marquee {
+  position: absolute;
+  z-index: 4;
+  border: 1px dashed var(--accent);
+  background: rgba(123, 213, 180, 0.1);
+  pointer-events: none;
+}
+
+.marquee-label {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 3px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--accent);
+  font: 11px/1.5 ui-monospace, monospace;
+  white-space: nowrap;
+}
+
+.change-flash {
+  position: absolute;
+  z-index: 2;
+  border: 2px solid var(--control);
+  border-radius: 4px;
+  background: rgba(246, 189, 96, 0.14);
+  opacity: 0;
+  pointer-events: none;
+  animation: change-flash 1400ms ease-out forwards;
+}
+
+@keyframes change-flash {
+  8% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
 #point-name {
   color: var(--text);
   font-weight: 650;
@@ -283,10 +504,50 @@ html,
 /* Stage */
 
 .canvas {
+  position: relative;
   flex: 1;
   min-width: 0;
   min-height: 0;
   padding: 20px;
+}
+
+/* The primary human action on the canvas: pin feedback for the agent. */
+
+.note-fab {
+  position: absolute;
+  right: 34px;
+  bottom: 34px;
+  z-index: 5;
+  min-height: 36px;
+  padding: 6px 16px;
+  border: 1.5px solid var(--control);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--control);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.35);
+}
+
+.note-fab:hover {
+  background: #2c2618;
+}
+
+.note-fab.active {
+  border-color: var(--control);
+  background: var(--control);
+  color: #241a05;
+}
+
+.note-fab .key {
+  border-color: currentcolor;
+  color: inherit;
+  opacity: 0.75;
+}
+
+.note-fab[hidden] {
+  display: none;
 }
 
 #stage {
@@ -313,16 +574,26 @@ html,
   max-height: 100%;
 }
 
+/* The backdrop also sets the CSS `color` the inlined SVG inherits, so
+   `currentColor` ink previews legibly against every polarity. */
+
 #stage.checker {
   background: repeating-conic-gradient(#24272b 0% 25%, #1b1e22 0% 50%) 0 0 / 20px 20px;
+  color: #e6e6e6;
 }
 
 #stage.white {
   background: #fff;
+  color: #111;
 }
 
 #stage.black {
   background: #000;
+  color: #e6e6e6;
+}
+
+#stage.history > svg {
+  opacity: 0.82;
 }
 
 #empty {
@@ -437,8 +708,23 @@ html,
 
   #bgbtn,
   #undobtn,
-  #redobtn {
+  #redobtn,
+  #scheme-select,
+  .toolbar [aria-label="Revision history"] {
     display: none;
+  }
+
+  .note-fab {
+    right: 18px;
+    bottom: 18px;
+  }
+
+  #notes-panel {
+    width: 100%;
+    max-height: 190px;
+    padding: 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--edge);
   }
 
   .toolbar .name {
@@ -492,5 +778,13 @@ html,
 @media (prefers-reduced-motion: reduce) {
   #toast {
     transition: none;
+  }
+
+  .pin.pulse {
+    animation: none;
+  }
+
+  .change-flash {
+    animation: change-flash 1400ms step-end forwards;
   }
 }

@@ -1674,6 +1674,10 @@ fn watch_serves_preview_and_rerenders_on_change() {
     assert!(index.contains("Handles stay linked by default"), "{index}");
     assert!(index.contains("id=\"undobtn\""), "{index}");
     assert!(index.contains("id=\"zoomfit\""), "{index}");
+    assert!(index.contains("id=\"notebtn\""), "{index}");
+    assert!(index.contains("id=\"histlabel\""), "{index}");
+    assert!(index.contains("id=\"scheme-select\""), "{index}");
+    assert!(index.contains("id=\"notes-panel\""), "{index}");
     assert!(index.contains("src=\"/watch.js\""), "{index}");
 
     let css = watch_http_get(port, "/watch.css");
@@ -1687,6 +1691,9 @@ fn watch_serves_preview_and_rerenders_on_change() {
     assert!(js.contains("function zoomAt("), "{js}");
     assert!(js.contains("function panViewport("), "{js}");
     assert!(js.contains("function installShapeTargets("), "{js}");
+    assert!(js.contains("function renderPins("), "{js}");
+    assert!(js.contains("function flashChange("), "{js}");
+    assert!(js.contains("function stepHistory("), "{js}");
 
     let viewport = watch_http_get(port, "/viewport.js");
     assert!(viewport.contains("200 OK"), "{viewport}");
@@ -1910,4 +1917,127 @@ fn watch_visually_edits_points_controls_and_topology() {
     child.kill().unwrap();
     let _ = child.wait();
     cleanup(&strok_path);
+}
+
+#[test]
+fn watch_notes_sidecar_and_scheme_switching() {
+    use std::io::BufRead;
+
+    let strok_path = write_temp_strok(concat!(
+        "documentsize 100x100\n",
+        "\n",
+        "palette\n",
+        "  ink #112233\n",
+        "\n",
+        "scheme dark\n",
+        "  ink #aabbcc\n",
+        "\n",
+        "shape s template=rectangle\n",
+        "  fill $ink\n",
+        "\n",
+        "place p shape=s at=10,10 size=50x50\n",
+    ));
+    let sidecar = {
+        let mut name = strok_path.file_name().unwrap().to_os_string();
+        name.push(".notes.json");
+        strok_path.with_file_name(name)
+    };
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_strok"))
+        .args([
+            "watch",
+            strok_path.to_str().unwrap(),
+            "--no-open",
+            "--port",
+            "0",
+        ])
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn watch");
+    let stderr = child.stderr.take().unwrap();
+    let mut lines = std::io::BufReader::new(stderr).lines();
+    let port: u16 = loop {
+        let line = lines
+            .next()
+            .expect("watch exited before startup line")
+            .unwrap();
+        if let Some(idx) = line.find("127.0.0.1:") {
+            let rest = &line[idx + "127.0.0.1:".len()..];
+            let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+            break digits.parse().unwrap();
+        }
+    };
+
+    // The base palette renders and the page knows the defined schemes.
+    let state = watch_http_get(port, "/state.json");
+    assert!(state.contains("#112233"), "{state}");
+    assert!(state.contains("\"scheme\":null"), "{state}");
+    assert!(state.contains("\"schemes\":[\"dark\"]"), "{state}");
+    assert!(state.contains("\"notes\":[]"), "{state}");
+
+    // Switching to a defined scheme re-renders live; unknown names 400.
+    let switched = watch_http_post(port, "/scheme", "scheme=dark");
+    assert!(switched.contains("200 OK"), "{switched}");
+    let state = watch_http_get(port, "/state.json");
+    assert!(state.contains("#aabbcc"), "{state}");
+    assert!(state.contains("\"scheme\":\"dark\""), "{state}");
+    let unknown = watch_http_post(port, "/scheme", "scheme=nope");
+    assert!(unknown.contains("400 Bad Request"), "{unknown}");
+    let back = watch_http_post(port, "/scheme", "scheme=");
+    assert!(back.contains("200 OK"), "{back}");
+    let state = watch_http_get(port, "/state.json");
+    assert!(state.contains("#112233"), "{state}");
+
+    // Adding a note persists it to the sidecar the agent reads.
+    let added = watch_http_post(
+        port,
+        "/note",
+        "action=add&x=42.5&y=13&text=make+this+rounder&target=p",
+    );
+    assert!(added.contains("200 OK"), "{added}");
+    let raw = fs::read_to_string(&sidecar).expect("notes sidecar written");
+    assert!(raw.contains("\"at\""), "{raw}");
+    assert!(raw.contains("42.5"), "{raw}");
+    assert!(raw.contains("\"target\": \"p\""), "{raw}");
+    assert!(raw.contains("\"text\": \"make this rounder\""), "{raw}");
+    let state = watch_http_get(port, "/state.json");
+    assert!(state.contains("make this rounder"), "{state}");
+
+    // Notes need text; nonexistent ids are rejected.
+    let empty = watch_http_post(port, "/note", "action=add&x=1&y=1&text=");
+    assert!(empty.contains("400 Bad Request"), "{empty}");
+    let gone = watch_http_post(port, "/note", "action=remove&id=99");
+    assert!(gone.contains("400 Bad Request"), "{gone}");
+
+    // An agent rewriting the sidecar (addressing a note) is picked up live.
+    fs::write(
+        &sidecar,
+        "{\"notes\": [{\"id\": 7, \"at\": [5, 6], \"text\": \"from the agent side\"}]}\n",
+    )
+    .unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        let state = watch_http_get(port, "/state.json");
+        if state.contains("from the agent side") {
+            assert!(!state.contains("make this rounder"), "{state}");
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "watch never reloaded the sidecar; last state: {state}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
+    // Removing the last note through the page deletes the sidecar entirely.
+    let removed = watch_http_post(port, "/note", "action=remove&id=7");
+    assert!(removed.contains("200 OK"), "{removed}");
+    assert!(!sidecar.exists(), "sidecar should be gone");
+    let state = watch_http_get(port, "/state.json");
+    assert!(state.contains("\"notes\":[]"), "{state}");
+
+    child.kill().unwrap();
+    let _ = child.wait();
+    cleanup(&strok_path);
+    cleanup(&sidecar);
 }

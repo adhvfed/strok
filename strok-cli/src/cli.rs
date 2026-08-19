@@ -325,6 +325,14 @@ shapes and edit their anchors, Bézier controls, and segment topology; those
 changes are written back to the .strok source immediately with browser undo and
 redo. It also follows edits made by hand in a text editor. Press Ctrl-C to stop.
 
+Built for reviewing an agent's work as it lands: external edits flash the
+changed region, recent revisions can be stepped through for comparison, and
+dragging on the preview copies an `x,y,w,h` region for `render --region`.
+The reviewer can pin notes onto the render; they persist to
+`<file>.notes.json` next to the document, where an agent reads the feedback
+and deletes each note it has addressed (the pins clear live). Documents that
+define colorschemes get a scheme picker in the page.
+
 Examples:
   strok watch design.strok
   strok -f design.strok watch
@@ -341,6 +349,37 @@ Examples:
         /// Don't open the browser automatically
         #[arg(long)]
         no_open: bool,
+        /// Run a command for each new review note (note JSON on stdin)
+        #[arg(long, value_name = "cmd")]
+        on_note: Option<String>,
+    },
+
+    /// Read or resolve the review notes pinned in a watch session
+    #[command(long_about = "\
+Read or resolve review notes for a document.
+
+Notes are pinned by a reviewer in `strok watch` and persist to
+`<file>.notes.json` next to the document. Address one note at a time and
+resolve it; a running watch session reloads the sidecar, so the reviewer sees
+pins clear as you work. Resolving the last note removes the sidecar.
+
+Examples:
+  strok notes art.strok                 list pending notes
+  strok notes art.strok --json          stable JSON for tooling
+  strok notes art.strok --resolve 2     delete note 2 (it has been addressed)
+  strok notes art.strok --clear         delete every note")]
+    Notes {
+        /// Document whose notes to read (or pass it with -f)
+        file: Option<String>,
+        /// Emit the notes as JSON
+        #[arg(long)]
+        json: bool,
+        /// Delete one note by id after addressing it
+        #[arg(long, value_name = "id", conflicts_with = "clear")]
+        resolve: Option<u64>,
+        /// Delete every note
+        #[arg(long)]
+        clear: bool,
     },
 
     /// Execute a DSL line (appends to the file)
@@ -1052,24 +1091,31 @@ Run Strøk as a Model Context Protocol (MCP) server (E3.4), speaking JSON-RPC 2.
 over stdio. Any MCP-capable agent runtime can spawn `strok mcp-server` and drive
 Strøk through tools with JSON schemas:
 
-  new            create a document (returns the .strok text)
-  exec           append a DSL line to a document
-  render         render to PNG — returned as an inline base64 image block
+  agent_intro    read this first: effort levels, workflow, completion gates
+  guide          visual-quality workflow for a topic (illustration, icon, ...)
+  new            create a document (optionally written to a file)
+  read / write   read a document; replace it with validated DSL source
+  exec           append one or more DSL lines, validated before writing
+  render         render to PNG, returned as an inline base64 image block
   inspect        structural / summary / full snapshot (JSON)
   query          region / overlap queries (JSON)
   relate         spatial relation between two elements (JSON)
   measure        distance / gap / alignment between two elements (JSON)
+  audit          visual-quality findings (JSON)
+  notes_list     pending review notes pinned in a watch session
+  note_resolve   delete one review note after addressing it
 
-Documents are passed as DSL text in each call (stateless, like the CLI), so the
-server itself holds no files. Render results come back as MCP image content
-(base64 PNG); inspection/query/measure come back as text content carrying the
-same stable JSON the CLI `--json` flags emit.
+Every document tool takes `file` (a path; mutations write back, imports
+resolve) or `source` (DSL text; stateless). Prefer `file`: it composes with
+`strok watch`, review notes, and version control. Renders come back as MCP
+image content (base64 PNG); inspection/query/measure/audit come back as text
+content carrying the same stable JSON the CLI `--json` flags emit.
 
-Example (the agent runtime does this for you):
-  {\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",...}
-  {\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}
-  {\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\
-\"params\":{\"name\":\"render\",\"arguments\":{\"source\":\"documentsize 24x24\\n...\"}}}")]
+Register the installed binary with your MCP client, e.g.:
+  claude mcp add strok -- strok mcp-server        (Claude Code)
+  codex mcp add strok -- strok mcp-server         (Codex CLI)
+or in a JSON client config:
+  {\"mcpServers\":{\"strok\":{\"command\":\"strok\",\"args\":[\"mcp-server\"]}}}")]
     McpServer,
 
     /// Emit framework code or design tokens

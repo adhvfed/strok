@@ -25,6 +25,23 @@ strok agent-intro
 strok guide illustration
 ```
 
+## MCP
+
+Agents with a shell use the CLI directly. For MCP-only runtimes, register the
+installed binary as a stdio server:
+
+```sh
+claude mcp add strok -- strok mcp-server
+```
+
+Or in any client's JSON config:
+
+```json
+{ "mcpServers": { "strok": { "command": "strok", "args": ["mcp-server"] } } }
+```
+
+Tools work on `.strok` files on disk and return renders as inline images.
+
 [Language](DSL_SPEC.md) · [CLI](CLI_SPEC.md) · [Contributing](CONTRIBUTING.md)
 
 Apache-2.0 or MIT.

@@ -859,15 +859,87 @@ Events with no manual refresh.
   Zoom ranges from 10% to 6400%, keeps editor handles a constant screen size,
   and never writes the document or adds an undo step.
 - The preview backdrop cycles checkerboard → white → black to judge
-  transparency and both polarities.
+  transparency and both polarities. The backdrop also sets the CSS color the
+  inlined SVG inherits, so `currentColor` ink previews legibly against every
+  polarity (light ink on checker/black, near-black ink on white).
+- **Watching an agent work.** When the file changes externally, the page
+  flashes the changed region (a low-resolution pixel diff of the old and new
+  renders) so fast iteration stays legible. The toolbar's `‹ rev ›` control
+  steps back through recent revisions (up to 40, view-only, per browser tab)
+  to compare an agent's iterations; the rev button jumps back to live.
+  Editing and notes are disabled while browsing a past revision.
+- **Pointing at things.** The toolbar shows the pointer's document
+  coordinates. Dragging on the preview draws a measuring marquee and copies
+  the enclosed `x,y,w,h` document region to the clipboard — ready to paste
+  into `render --region`, a note, or a chat message to the agent.
+- **Review notes — the human→agent feedback channel.** The **Note** button
+  (or `N`) enters note mode: click anywhere on the render (or on a named
+  placement, which records it as the note's `target`), type the note, press
+  Enter. Notes appear as numbered pins and persist to a sidecar
+  **`<file>.notes.json`** next to the document:
+
+  ```json
+  {
+    "notes": [
+      { "id": 1, "at": [462, 301], "target": "cup-rim", "text": "make this rounder" },
+      { "id": 2, "at": [90, 640], "text": "too much empty space down here" }
+    ]
+  }
+  ```
+
+  `at` is in document coordinates; `target` is present when the pin was
+  dropped on a named placement. The sidecar — not server memory — is the
+  source of truth: an agent addressing feedback deletes each entry it has
+  handled (or the whole file when done), and watch reloads the sidecar on
+  change so the pins clear live in the reviewer's browser. Deleting the last
+  note removes the sidecar. Agents should treat a `.notes.json` file next to
+  a watched document as pending review feedback.
+
+  Each note has a visible lifecycle in the page: **sending** (the pin is on
+  its way to the sidecar), **waiting for agent**, and **seen** (`"ack": true`
+  in the sidecar; the pin turns hollow). Reading the notes is the receipt:
+  `strok notes` and the MCP `notes_list` tool mark unread notes as seen when
+  they list them. Resolution stays deletion.
+- Documents that define colorschemes get a scheme picker in the toolbar;
+  switching re-renders live without restarting watch. `--scheme` seeds the
+  initial choice.
 - `--port` defaults to an ephemeral free port; the chosen URL is printed on
   startup.
 - `--scheme <name>`: resolve `$token` colors with the named colorscheme.
 - `--no-open`: don't launch the browser (print the URL only).
+- `--on-note <cmd>`: run a shell command for **each new note** (pinned in the
+  page or added to the sidecar externally), with the note as one compact JSON
+  object on stdin: `{"file":"art.strok","id":1,"at":[x,y],"target":"cup-rim",
+  "text":"..."}`. Fire-and-forget: hook failures are reported to stderr and
+  never block the review loop. Use it to ping an agent the moment feedback
+  lands instead of polling the sidecar.
 - This is the only long-running command besides `mcp-server`; stop it with
   Ctrl-C. The file on disk remains the single source of truth. Browser edits
   round-trip through the same parser and canonical DSL emitter used by CLI
   mutations.
+
+### `notes`
+
+Read or resolve the review notes pinned in a `watch` session — the CLI half of
+the human→agent review loop (the MCP half is `notes_list` / `note_resolve`).
+
+```
+strok notes <file> [--json]
+strok notes <file> --resolve <id>
+strok notes <file> --clear
+strok -f <file> notes
+```
+
+- With no flags: a human-readable list of pending notes (id, target,
+  document coordinates, text) or "no pending notes".
+- Listing (plain or `--json`) is the read receipt: unread notes are marked
+  `"ack": true` in the sidecar, and the reviewer's pins flip to "seen".
+- `--json`: the sidecar's stable schema (`{ "notes": [...] }`), for tooling.
+- `--resolve <id>`: delete one note after addressing it. A running watch
+  session reloads the sidecar, so the reviewer sees the pin clear live.
+  Unknown ids are an error. Resolving the last note removes the sidecar.
+- `--clear`: delete every note (and the sidecar).
+- Address one note at a time: fix, render, verify, then resolve.
 
 ### `batch`
 
@@ -1050,17 +1122,52 @@ any MCP-capable agent runtime can drive Strøk through schema'd tools.
 strok mcp-server
 ```
 
+- **Registration:** the server is the installed `strok` binary itself (e.g. via
+  `brew install adhvfed/tap/strok`) — there is nothing separate to install.
+  Point any MCP client at the command `strok` with the argument `mcp-server`:
+
+  ```sh
+  claude mcp add strok -- strok mcp-server     # Claude Code
+  codex mcp add strok -- strok mcp-server      # Codex CLI
+  ```
+
+  ```json
+  { "mcpServers": { "strok": { "command": "strok", "args": ["mcp-server"] } } }
+  ```
+
+  The JSON form fits Claude Desktop (`claude_desktop_config.json`), Cursor
+  (`.cursor/mcp.json`), and other JSON-configured clients. The server needs
+  filesystem access to the documents it edits, so run it locally (stdio), not
+  sandboxed away from the project directory.
+
 - **Transport:** newline-delimited JSON-RPC 2.0 on stdin/stdout. Methods:
   `initialize`, `tools/list`, `tools/call`, `ping`; `notifications/*` are
   acknowledged with no reply.
-- **Tools** (each takes the document as DSL `source` text — stateless, like the
-  file-based CLI): `new`, `exec`, `render`, `inspect`, `query`, `relate`,
-  `measure`. They reuse the **same** core/render code paths as the CLI verbs.
+- **Document input:** every document tool takes the document as **either**
+  `file` (a path on disk) **or** `source` (DSL text) — exactly one. File mode
+  is the primary flow: mutations write back to the file, module imports
+  resolve relative to it, and the document composes with `strok watch`,
+  review notes, and version control. Source mode stays available for
+  stateless scratch work; mutations then return the updated source.
+- **Tools:** `agent_intro`, `guide`, `new` (optionally writes to `file`),
+  `read`, `write` (full-document replace, validated before writing — the
+  general-purpose edit: read, modify, write), `exec` (append one or more DSL
+  lines, validated before writing), `render`, `inspect`, `query`, `relate`,
+  `measure`, `audit`, `notes_list`, `note_resolve`. They reuse the **same**
+  core/render code paths as the CLI verbs.
+- **Review notes:** `notes_list` reads the `<file>.notes.json` sidecar a
+  reviewer fills in `strok watch` and marks the notes seen (the reviewer's
+  pins show the agent has them); `note_resolve` deletes one addressed note
+  (the pin clears live). Same protocol as the CLI `notes` command.
 - **Images:** `render` returns an MCP `image` content block (`{type:"image",
-  data:<base64 PNG>, mimeType:"image/png"}`). Inspection/query/measure return
-  `text` content carrying the same stable JSON the CLI `--json` flags emit.
+  data:<base64 PNG>, mimeType:"image/png"}`) so an agent inspects its work in
+  the same round trip — no temp files. `render` resolves `$token` colors
+  (optionally under `scheme`) exactly like the CLI. Inspection/query/measure/
+  audit return `text` content carrying the same stable JSON the CLI `--json`
+  flags emit.
 - **Tool errors** are returned as a successful call with `isError: true` (the
-  model sees the message), not as a transport failure.
+  model sees the message), not as a transport failure. Parse failures carry
+  the same caret diagnostics the CLI prints.
 - **Decision D-3 (recorded):** implemented as a thin stdio shim rather than the
   `rmcp` SDK to keep the transport stateless and the dependency surface small.
 

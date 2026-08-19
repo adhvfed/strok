@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>strøk</title>
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="/watch.css">
   </head>
   <body class="watch-app">
@@ -11,9 +12,17 @@
       <span class="dot" id="dot" aria-hidden="true"></span>
       <span class="name" id="name">…</span>
       <span class="meta" id="size"></span>
+      <span class="meta" id="coords" title="Pointer position in document coordinates. Drag on the preview to copy a region."></span>
       <span class="spacer"></span>
       <span class="meta" id="save-status" role="status"></span>
-      <span class="meta" id="rev"></span>
+
+      <select class="form-select" id="scheme-select" aria-label="Colorscheme" hidden></select>
+
+      <div class="zoom-controls" role="group" aria-label="Revision history">
+        <button class="button" id="histback" title="Previous revision" aria-label="Previous revision" disabled>‹</button>
+        <button class="button" id="histlabel" title="Jump back to the live revision" disabled>rev –</button>
+        <button class="button" id="histfwd" title="Next revision" aria-label="Next revision" disabled>›</button>
+      </div>
 
       <div class="zoom-controls" role="group" aria-label="Canvas zoom">
         <button class="button" id="zoomout" title="Zoom out (−)" aria-label="Zoom out" disabled>−</button>
@@ -30,6 +39,22 @@
     <pre id="errorbar" hidden></pre>
 
     <div id="workspace">
+      <aside id="notes-panel" hidden>
+        <h1 class="inspector-title">Review notes</h1>
+        <p class="inspector-intro">
+          Click the canvas to pin feedback. Notes save to
+          <code id="notes-file">…</code> next to the document, where an agent
+          reads them and deletes each one it has addressed.
+        </p>
+        <ol id="notes-list"></ol>
+        <p class="hint">
+          Press <kbd class="key">N</kbd> to toggle note mode and
+          <kbd class="key">Esc</kbd> to leave it. A pin turns hollow once the
+          agent has read the note, and clears the moment its entry leaves the
+          sidecar file.
+        </p>
+      </aside>
+
       <aside id="inspector" hidden>
         <h1 class="inspector-title">Shape editor</h1>
         <p class="inspector-intro">Changes save directly to the watched file.</p>
@@ -64,11 +89,16 @@
         <div id="stage" class="checker">
           <span id="empty">waiting for first render…</span>
         </div>
+        <button class="note-fab" id="notebtn" title="Pin a review note for the agent (N)" hidden></button>
       </main>
     </div>
 
     <div id="toast" role="alert"></div>
     <div id="shape-tip" role="status" hidden></div>
+    <form id="note-form" hidden>
+      <input id="note-input" type="text" placeholder="Note for the agent…"
+             autocomplete="off" aria-label="Note text" maxlength="500">
+    </form>
     <script type="module" src="/watch.js"></script>
   </body>
 </html>

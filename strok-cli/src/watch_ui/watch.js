@@ -16,6 +16,7 @@
   const $ = (id) => document.getElementById(id);
   const ns = 'http://www.w3.org/2000/svg';
   const backdrops = ['checker', 'white', 'black'];
+  const HISTORY_CAP = 40;
   let backdrop = 0, version = -1, state = null, editing = false;
   let shapeName = null, activeTarget = null, drag = null;
   let editorSvg = null, editorLayer = null, toastTimer = null;
@@ -23,6 +24,13 @@
   const camera = new ViewBoxCamera();
   let editQueue = Promise.resolve();
   let gestureScale = 1;
+  // Live document viewBox, review-note mode, revision browsing, and the
+  // change-flash bookkeeping for external (agent) edits.
+  let docBox = null, noteMode = false, pendingNote = null;
+  const revHistory = [];
+  let histView = null;   // null = live; otherwise an index into revHistory
+  let lastSvg = null, suppressFlash = false;
+  let marqueeState = null, suppressClick = false;
 
   $('bgbtn').onclick = () => {
     $('stage').classList.remove(backdrops[backdrop]);
@@ -42,6 +50,14 @@
   $('zoomout').onclick = () => zoomAt(1 / 1.25);
   $('zoomin').onclick = () => zoomAt(1.25);
   $('zoomfit').onclick = fitViewport;
+  $('histback').onclick = () => stepHistory(-1);
+  $('histfwd').onclick = () => stepHistory(1);
+  $('histlabel').onclick = () => {
+    if (histView !== null) { histView = null; renderCurrent(); }
+  };
+  $('notebtn').onclick = toggleNoteMode;
+  $('scheme-select').onchange = switchScheme;
+  new ResizeObserver(() => renderPins()).observe($('stage'));
 
   function showToast(message) {
     $('toast').textContent = message;
@@ -68,6 +84,7 @@
     $('zoomout').disabled = camera.zoom <= camera.minZoom;
     $('zoomin').disabled = camera.zoom >= camera.maxZoom;
     if (svg === editorSvg) updateOverlayScale();
+    renderPins();
   }
 
   function fitViewport() {
@@ -126,28 +143,114 @@
 
   async function refresh() {
     try {
+      const previousSvg = lastSvg;
       const response = await fetch('/state.json');
       state = await response.json();
       version = state.version;
       document.title = state.file + ' — strøk';
       $('name').textContent = state.file;
-      $('rev').textContent = 'rev ' + state.version;
+      $('notes-file').textContent = state.file + '.notes.json';
       $('undobtn').disabled = !state.canUndo;
       $('redobtn').disabled = !state.canRedo;
       $('errorbar').hidden = !state.error;
       $('errorbar').textContent = state.error || '';
       $('stage').classList.toggle('stale', !!state.error);
       $('dot').className = 'dot ' + (state.error ? 'err' : 'ok');
-      $('editbtn').disabled = !state.editor.length;
       $('editbtn').title = state.editor.length ? 'Edit named shape geometry' : 'This document has no local editable shapes';
       updateShapeSelect();
-      if (editing && state.editor.length) renderEditor();
-      else if (editing) leaveEditor();
-      else renderDocument();
+      updateSchemeSelect();
+      recordRevision();
+      renderCurrent();
       $('save-status').textContent = '';
+      if (previousSvg && state.svg && previousSvg !== state.svg
+        && !suppressFlash && !editing && histView === null) {
+        flashChange(previousSvg, state.svg);
+      }
+      lastSvg = state.svg;
+      suppressFlash = false;
     } catch (_) {
       $('dot').className = 'dot';
     }
+  }
+
+  // Render whatever the page should currently show (the editor, a browsed
+  // historical revision, or the live document) and sync every mode control.
+  function renderCurrent() {
+    if (editing && state.editor.length) {
+      renderEditor();
+    } else if (editing) {
+      leaveEditor();
+      return;
+    } else if (histView !== null) {
+      renderHistorySvg();
+    } else {
+      renderDocument();
+    }
+    updateHistControls();
+    updateModeButtons();
+    // Panel visibility changes the stage layout, so settle it before placing
+    // pins (a ResizeObserver re-places them on any later stage resize).
+    updateNotesPanel();
+    renderPins();
+  }
+
+  function updateModeButtons() {
+    const browsing = histView !== null;
+    $('editbtn').disabled = browsing || !state?.editor.length;
+    const fab = $('notebtn');
+    fab.hidden = browsing || !state?.svg;
+    fab.classList.toggle('active', noteMode);
+    setFabLabel(noteMode ? 'active' : 'idle');
+  }
+
+  // The floating pill is the page's primary human action; its label doubles
+  // as the note status line (idle / armed / sending).
+  function setFabLabel(mode) {
+    const fab = $('notebtn');
+    if (mode === 'sending') {
+      fab.textContent = 'Sending…';
+      return;
+    }
+    fab.replaceChildren();
+    const key = document.createElement('kbd');
+    key.className = 'key';
+    if (mode === 'active') {
+      key.textContent = 'Esc';
+      fab.append('Click the canvas to pin · ', key, ' done');
+    } else {
+      key.textContent = 'N';
+      fab.append('Pin a note ', key);
+    }
+  }
+
+  function recordRevision() {
+    if (!state.svg) return;
+    const last = revHistory[revHistory.length - 1];
+    if (last && last.svg === state.svg) return;
+    revHistory.push({ version: state.version, svg: state.svg });
+    if (revHistory.length > HISTORY_CAP) {
+      revHistory.shift();
+      if (histView !== null) histView = Math.max(0, histView - 1);
+    }
+  }
+
+  function stepHistory(delta) {
+    if (revHistory.length < 2 || editing) return;
+    let index = (histView === null ? revHistory.length - 1 : histView) + delta;
+    histView = index >= revHistory.length - 1 ? null : Math.max(0, index);
+    renderCurrent();
+  }
+
+  function updateHistControls() {
+    const live = histView === null;
+    const latest = revHistory.length ? revHistory[revHistory.length - 1].version : null;
+    $('histback').disabled = editing || revHistory.length < 2 || (!live && histView === 0);
+    $('histfwd').disabled = live;
+    $('histlabel').disabled = live && !revHistory.length;
+    $('histlabel').classList.toggle('browsing', !live);
+    $('histlabel').textContent = live
+      ? 'rev ' + (state ? state.version : '–')
+      : 'rev ' + revHistory[histView].version + ' / ' + latest;
   }
 
   function updateShapeSelect() {
@@ -165,17 +268,57 @@
 
   function renderDocument() {
     if (!state || !state.svg) return;
-    $('stage').innerHTML = state.svg;
+    mountSvg(state.svg, true);
+  }
+
+  function renderHistorySvg() {
+    const entry = revHistory[histView];
+    if (!entry) { histView = null; renderDocument(); return; }
+    mountSvg(entry.svg, false);
+  }
+
+  // Mount a rendered document into the stage. Historical revisions are
+  // view-only: no edit targets, and the stage is marked so they read as past.
+  function mountSvg(svgText, live) {
+    $('stage').innerHTML = svgText;
+    $('stage').classList.toggle('history', !live);
     const svg = $('stage').querySelector('svg');
     if (!svg) return;
     const width = svg.getAttribute('width'), height = svg.getAttribute('height');
     if (!svg.getAttribute('viewBox') && width && height) svg.setAttribute('viewBox', `0 0 ${parseFloat(width)} ${parseFloat(height)}`);
     if (width && height) $('size').textContent = parseFloat(width) + '×' + parseFloat(height);
     svg.removeAttribute('width'); svg.removeAttribute('height');
-    svg.setAttribute('aria-label', 'Document preview');
-    installShapeTargets(svg);
+    svg.setAttribute('aria-label', live ? 'Document preview' : 'Past revision preview');
+    if (live) installShapeTargets(svg);
     const box = svg.viewBox.baseVal;
+    if (live) docBox = { x: box.x, y: box.y, width: box.width, height: box.height };
     if (box.width > 0 && box.height > 0) installViewport(svg, 'document', box);
+  }
+
+  function updateSchemeSelect() {
+    const select = $('scheme-select');
+    const schemes = state.schemes || [];
+    select.hidden = !schemes.length;
+    if (select.hidden) return;
+    const current = state.scheme || '';
+    select.replaceChildren(...['', ...schemes].map((name) => {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name || 'base palette';
+      option.selected = name === current;
+      return option;
+    }));
+  }
+
+  async function switchScheme(event) {
+    suppressFlash = true;
+    try {
+      await postForm('/scheme', { scheme: event.target.value });
+      await refresh();
+    } catch (error) {
+      showToast(error.message || 'Could not switch the scheme.');
+      await refresh();
+    }
   }
 
   const matrixValue = (transform) => `matrix(${transform.join(' ')})`;
@@ -197,9 +340,12 @@
       hit.addEventListener('pointerleave', hideShapeTip);
       hit.addEventListener('click', (event) => {
         event.preventDefault(); event.stopPropagation();
+        if (suppressClick) return;
+        if (noteMode) { openNoteInput(event.clientX, event.clientY, target.name); return; }
         editTarget(target);
       });
       hit.addEventListener('keydown', (event) => {
+        if (noteMode) return;
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault(); editTarget(target);
         }
@@ -227,13 +373,17 @@
   }
 
   function enterEditor() {
-    if (!state?.editor.length) return;
+    if (!state?.editor.length || histView !== null) return;
+    if (noteMode) setNoteMode(false);
     activeTarget ??= state.targets.find((target) => target.shape === shapeName)?.name ?? null;
     editing = true; selection.clear();
     $('inspector').hidden = false;
     $('editbtn').textContent = 'Done';
     $('editbtn').classList.remove('primary');
     renderEditor();
+    updateModeButtons();
+    updateNotesPanel();
+    updateHistControls();
   }
 
   function leaveEditor() {
@@ -244,7 +394,7 @@
     $('point-name').textContent = 'Select a point';
     $('deletebtn').disabled = true;
     $('symmetricbtn').disabled = true;
-    renderDocument();
+    renderCurrent();
   }
 
   function currentShape() { return state?.editor.find((shape) => shape.name === shapeName); }
@@ -543,6 +693,7 @@
     editorLayer = mounted.layer;
 
     $('stage').replaceChildren(mounted.svg);
+    $('stage').classList.remove('history');
     installViewport(mounted.svg, mounted.viewportId, mounted.fitBox);
     updateOverlayScale();
     $('size').textContent = `${shape.points.length} ${shape.points.length === 1 ? 'point' : 'points'}`;
@@ -877,6 +1028,303 @@
     await edit({ action: 'symmetric', shape: shape.name, point: anchor.name });
   }
 
+  // --- review notes, region marquee, and change flash -----------------------
+
+  function setNoteMode(active) {
+    noteMode = active;
+    $('stage').classList.toggle('noting', noteMode);
+    cancelNoteInput();
+  }
+
+  function toggleNoteMode() {
+    if (!noteMode && $('notebtn').hidden) return;
+    if (editing) { setNoteMode(true); leaveEditor(); return; }
+    setNoteMode(!noteMode);
+    renderCurrent();
+  }
+
+  function openNoteInput(clientX, clientY, target) {
+    const inverse = stageSvg()?.getScreenCTM()?.inverse();
+    if (!inverse) return;
+    const point = new DOMPoint(clientX, clientY).matrixTransform(inverse);
+    pendingNote = { x: point.x, y: point.y, target };
+    const form = $('note-form');
+    form.hidden = false;
+    form.style.left = Math.min(clientX + 8, innerWidth - 264) + 'px';
+    form.style.top = Math.min(clientY + 8, innerHeight - 46) + 'px';
+    $('note-input').value = '';
+    $('note-input').focus();
+  }
+
+  function cancelNoteInput() {
+    pendingNote = null;
+    $('note-form').hidden = true;
+  }
+
+  $('note-form').onsubmit = async (event) => {
+    event.preventDefault();
+    const text = $('note-input').value.trim();
+    const note = pendingNote;
+    cancelNoteInput();
+    if (!text || !note) return;
+    const fields = { action: 'add', x: note.x, y: note.y, text };
+    if (note.target) fields.target = note.target;
+    setFabLabel('sending');
+    try {
+      await postForm('/note', fields);
+      await refresh();
+    } catch (error) {
+      showToast(error.message || 'Could not save the note.');
+      updateModeButtons();
+    }
+  };
+  $('note-input').addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') { event.preventDefault(); cancelNoteInput(); }
+  });
+
+  async function removeNote(id) {
+    try {
+      await postForm('/note', { action: 'remove', id });
+      await refresh();
+    } catch (error) {
+      showToast(error.message || 'Could not delete the note.');
+      await refresh();
+    }
+  }
+
+  function updateNotesPanel() {
+    const notes = state?.notes ?? [];
+    $('notes-panel').hidden = editing || (!noteMode && !notes.length);
+    if ($('notes-panel').hidden) return;
+    const list = $('notes-list');
+    if (!notes.length) {
+      const empty = document.createElement('li');
+      empty.className = 'notes-empty';
+      empty.textContent = 'No notes yet. Click the canvas to pin one.';
+      list.replaceChildren(empty);
+      return;
+    }
+    list.replaceChildren(...notes.map((note) => {
+      const item = document.createElement('li');
+      item.className = 'note-item';
+      const id = document.createElement('span');
+      id.className = 'note-id';
+      id.textContent = note.id;
+      const body = document.createElement('span');
+      body.className = 'note-body';
+      if (note.target) {
+        const target = document.createElement('span');
+        target.className = 'note-target';
+        target.textContent = note.target;
+        body.append(target);
+      }
+      body.append(document.createTextNode(note.text));
+      const status = document.createElement('span');
+      status.className = 'note-state' + (note.ack ? ' seen' : '');
+      status.textContent = note.ack ? 'seen by agent' : 'waiting for agent';
+      body.append(status);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'note-remove';
+      remove.title = 'Delete note ' + note.id;
+      remove.setAttribute('aria-label', 'Delete note ' + note.id);
+      remove.textContent = '✕';
+      remove.onclick = (event) => { event.stopPropagation(); removeNote(note.id); };
+      item.onclick = () => pulsePin(note.id);
+      item.append(id, body, remove);
+      return item;
+    }));
+  }
+
+  function renderPins() {
+    $('stage').querySelectorAll('.pin').forEach((pin) => pin.remove());
+    if (editing || histView !== null) return;
+    const notes = state?.notes ?? [];
+    if (!notes.length) return;
+    const ctm = stageSvg()?.getScreenCTM();
+    if (!ctm) return;
+    const stageBox = $('stage').getBoundingClientRect();
+    notes.forEach((note) => {
+      const point = new DOMPoint(note.at[0], note.at[1]).matrixTransform(ctm);
+      const pin = document.createElement('div');
+      pin.className = 'pin' + (note.ack ? ' seen' : '');
+      pin.dataset.note = note.id;
+      pin.textContent = note.id;
+      pin.style.left = point.x - stageBox.left + 'px';
+      pin.style.top = point.y - stageBox.top + 'px';
+      $('stage').append(pin);
+    });
+  }
+
+  function pulsePin(id) {
+    const pin = $('stage').querySelector(`.pin[data-note="${id}"]`);
+    if (!pin) return;
+    pin.classList.remove('pulse');
+    void pin.offsetWidth;
+    pin.classList.add('pulse');
+    setTimeout(() => pin.classList.remove('pulse'), 1500);
+  }
+
+  $('stage').addEventListener('click', (event) => {
+    if (!noteMode || editing || suppressClick) return;
+    openNoteInput(event.clientX, event.clientY, null);
+  });
+
+  // Drag on the preview to measure a document region; releasing copies an
+  // `x,y,w,h` string ready for `render --region` or a note to the agent.
+  $('stage').addEventListener('pointerdown', (event) => {
+    if (editing || noteMode || event.button !== 0 || !stageSvg()) return;
+    marqueeState = { startX: event.clientX, startY: event.clientY, box: null, label: null, region: null };
+  });
+
+  window.addEventListener('pointermove', (event) => {
+    if (!marqueeState) return;
+    const dx = event.clientX - marqueeState.startX, dy = event.clientY - marqueeState.startY;
+    if (!marqueeState.box && Math.hypot(dx, dy) < 5) return;
+    if (!marqueeState.box) {
+      hideShapeTip();
+      const box = document.createElement('div');
+      box.className = 'marquee';
+      const label = document.createElement('span');
+      label.className = 'marquee-label';
+      box.append(label);
+      $('stage').append(box);
+      marqueeState.box = box;
+      marqueeState.label = label;
+    }
+    const stageBox = $('stage').getBoundingClientRect();
+    const left = Math.min(event.clientX, marqueeState.startX);
+    const top = Math.min(event.clientY, marqueeState.startY);
+    const width = Math.abs(dx), height = Math.abs(dy);
+    Object.assign(marqueeState.box.style, {
+      left: left - stageBox.left + 'px',
+      top: top - stageBox.top + 'px',
+      width: width + 'px',
+      height: height + 'px',
+    });
+    marqueeState.region = regionFromClientRect(left, top, width, height);
+    marqueeState.label.textContent = marqueeState.region ?? '';
+  });
+
+  window.addEventListener('pointerup', async () => {
+    if (!marqueeState) return;
+    const finished = marqueeState;
+    marqueeState = null;
+    if (!finished.box) return;
+    finished.box.remove();
+    if (!finished.region) return;
+    suppressClick = true;
+    setTimeout(() => { suppressClick = false; });
+    try {
+      await navigator.clipboard.writeText(finished.region);
+      showToast('region ' + finished.region + ' copied; paste into render --region');
+    } catch (_) {
+      showToast('region ' + finished.region);
+    }
+  });
+
+  function regionFromClientRect(left, top, width, height) {
+    const inverse = stageSvg()?.getScreenCTM()?.inverse();
+    if (!inverse) return null;
+    const a = new DOMPoint(left, top).matrixTransform(inverse);
+    const b = new DOMPoint(left + width, top + height).matrixTransform(inverse);
+    const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+    return [x, y, Math.max(Math.abs(b.x - a.x), 1), Math.max(Math.abs(b.y - a.y), 1)]
+      .map(Math.round).join(',');
+  }
+
+  $('stage').addEventListener('pointermove', (event) => {
+    const ctm = stageSvg()?.getScreenCTM();
+    if (!ctm) { $('coords').textContent = ''; return; }
+    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse());
+    $('coords').textContent = Math.round(point.x) + ', ' + Math.round(point.y);
+  });
+  $('stage').addEventListener('pointerleave', () => { $('coords').textContent = ''; });
+
+  // When an external (agent) edit lands, rasterize the old and new renders at
+  // low resolution, diff them, and flash the changed region so the eye is
+  // drawn to what moved.
+  async function flashChange(previousSvg, nextSvg) {
+    if (!docBox || docBox.width <= 0 || docBox.height <= 0) return;
+    const width = 240;
+    const height = Math.max(1, Math.round(width * docBox.height / docBox.width));
+    const [before, after] = await Promise.all([
+      rasterize(previousSvg, width, height),
+      rasterize(nextSvg, width, height),
+    ]);
+    if (!before || !after) return;
+    let minX = width, minY = height, maxX = -1, maxY = -1, changed = 0;
+    for (let i = 0; i < before.data.length; i += 4) {
+      if (Math.abs(before.data[i] - after.data[i]) > 24
+        || Math.abs(before.data[i + 1] - after.data[i + 1]) > 24
+        || Math.abs(before.data[i + 2] - after.data[i + 2]) > 24
+        || Math.abs(before.data[i + 3] - after.data[i + 3]) > 24) {
+        const x = (i / 4) % width, y = Math.floor(i / 4 / width);
+        changed++;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+    if (changed < 4) return;
+    const pad = 2;
+    const scaleX = docBox.width / width, scaleY = docBox.height / height;
+    showFlash(
+      docBox.x + (minX - pad) * scaleX,
+      docBox.y + (minY - pad) * scaleY,
+      (maxX - minX + 1 + 2 * pad) * scaleX,
+      (maxY - minY + 1 + 2 * pad) * scaleY,
+    );
+  }
+
+  function rasterize(svgText, width, height) {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(new Blob([svgText], { type: 'image/svg+xml' }));
+      const image = new Image();
+      image.onload = () => {
+        URL.revokeObjectURL(url);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
+        context.drawImage(image, 0, 0, width, height);
+        try { resolve(context.getImageData(0, 0, width, height)); }
+        catch (_) { resolve(null); }
+      };
+      image.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+      image.src = url;
+    });
+  }
+
+  function showFlash(x, y, w, h) {
+    if (editing || histView !== null) return;
+    const ctm = stageSvg()?.getScreenCTM();
+    if (!ctm) return;
+    const stageBox = $('stage').getBoundingClientRect();
+    const a = new DOMPoint(x, y).matrixTransform(ctm);
+    const b = new DOMPoint(x + w, y + h).matrixTransform(ctm);
+    const flash = document.createElement('div');
+    flash.className = 'change-flash';
+    flash.style.left = Math.min(a.x, b.x) - stageBox.left + 'px';
+    flash.style.top = Math.min(a.y, b.y) - stageBox.top + 'px';
+    flash.style.width = Math.abs(b.x - a.x) + 'px';
+    flash.style.height = Math.abs(b.y - a.y) + 'px';
+    $('stage').append(flash);
+    setTimeout(() => flash.remove(), 1600);
+  }
+
+  // --- edits -----------------------------------------------------------------
+
+  async function postForm(path, fields) {
+    const response = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      body: new URLSearchParams(fields),
+    });
+    if (!response.ok) throw new Error(await response.text());
+  }
+
   function edit(fields) {
     editQueue = editQueue.then(() => performEdit(fields));
     return editQueue;
@@ -884,9 +1332,9 @@
 
   async function performEdit(fields) {
     $('save-status').textContent = 'Saving…';
+    suppressFlash = true;
     try {
-      const response = await fetch('/edit', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body: new URLSearchParams(fields) });
-      if (!response.ok) throw new Error(await response.text());
+      await postForm('/edit', fields);
       $('save-status').textContent = 'Saved';
       await refresh();
     } catch (error) {
@@ -907,7 +1355,15 @@
       edit({ action: event.shiftKey ? 'redo' : 'undo' });
       return;
     }
-    if (!editing) return;
+    if (!command && event.key.toLowerCase() === 'n' && !editing) {
+      event.preventDefault();
+      toggleNoteMode();
+      return;
+    }
+    if (!editing) {
+      if (noteMode && event.key === 'Escape') toggleNoteMode();
+      return;
+    }
     if (command && event.key.toLowerCase() === 'a') {
       event.preventDefault();
       const shape = currentShape();

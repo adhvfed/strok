@@ -16,14 +16,21 @@
 //! (acknowledged, no response).
 //!
 //! Tools mirror the CLI verbs and reuse the SAME core/render code paths the CLI
-//! uses, so behavior can't drift. Documents are passed as DSL `source` text in
-//! every call (stateless, like the file-based CLI). `render` returns an MCP
-//! image content block (base64 PNG); inspection/query/measure return text
-//! content carrying the stable `--json` schema from C6.
+//! uses, so behavior can't drift. Every document tool takes the document as
+//! either `file` (a path on disk; mutations write back) or `source` (DSL text;
+//! stateless, mutations return the updated text). File mode is the primary
+//! flow: it gives shell-less agent runtimes the same file-first loop the CLI
+//! offers, composing with `strok watch`, review notes, and version control.
+//! `render` returns an MCP image content block (base64 PNG) so the agent sees
+//! its work inline; inspection/query/measure return text content carrying the
+//! stable `--json` schema from C6.
 
 use std::io::{BufRead, Write};
+use std::path::{Path, PathBuf};
 
+use strok_core::document::Document;
 use strok_core::json::Json;
+use strok_core::scene::Scene;
 use strok_render::{render_svg_string, target_dimensions, RenderOptions, RenderRegion};
 
 const PROTOCOL_VERSION: &str = "2024-11-05";
@@ -115,16 +122,46 @@ fn initialize_result() -> Json {
                 ("version", Json::str(SERVER_VERSION)),
             ]),
         ),
+        (
+            "instructions",
+            Json::str(
+                "Strok is a file-first vector design toolkit. Call agent_intro before \
+                 authoring. Prefer the `file` argument over `source` so the document \
+                 lives on disk and composes with `strok watch` (live human preview) and \
+                 pinned review notes (notes_list / note_resolve).",
+            ),
+        ),
     ])
 }
 
-/// A `source` (DSL document text) property shared by every tool.
+/// A `source` (DSL document text) property shared by every document tool.
 fn source_prop() -> (&'static str, Json) {
     (
         "source",
         Json::obj([
             ("type", Json::str("string")),
-            ("description", Json::str("The .strok document as DSL text.")),
+            (
+                "description",
+                Json::str("The .strok document as DSL text. Pass either source or file, not both."),
+            ),
+        ]),
+    )
+}
+
+/// A `file` (path on disk) property shared by every document tool.
+fn file_prop() -> (&'static str, Json) {
+    (
+        "file",
+        Json::obj([
+            ("type", Json::str("string")),
+            (
+                "description",
+                Json::str(
+                    "Path to a .strok document on disk. Preferred over source: mutations \
+                     write back to the file, imports resolve, and the document composes \
+                     with watch and review notes.",
+                ),
+            ),
         ]),
     )
 }
@@ -188,10 +225,15 @@ pub fn tool_catalog() -> Vec<Json> {
         ),
         tool(
             "new",
-            "Create a new Strøk document and return its DSL source. \
+            "Create a new Strøk document. With file, writes it to disk and returns a \
+             confirmation; without, returns the DSL source. \
              For icons, read the guide then choose an explicit visual profile.",
             schema(
                 vec![
+                    (
+                        "file",
+                        str_prop("Optional path to write the new document to (must not exist)."),
+                    ),
                     ("size", str_prop("Canvas size as WxH (default 800x800).")),
                     (
                         "profile",
@@ -204,21 +246,50 @@ pub fn tool_catalog() -> Vec<Json> {
             ),
         ),
         tool(
-            "exec",
-            "Append a raw DSL line to a document and return the new source. \
-             The result is validated by re-parsing.",
+            "read",
+            "Read a .strok document from disk and return its DSL source.",
+            schema(vec![file_prop()], &["file"]),
+        ),
+        tool(
+            "write",
+            "Replace a .strok document on disk with new DSL source. The source is \
+             validated by parsing first; on error the file is left untouched and \
+             the caret diagnostics are returned. This is the general-purpose edit: \
+             read, modify the text, write.",
             schema(
-                vec![source_prop(), ("line", str_prop("The DSL line to append."))],
-                &["source", "line"],
+                vec![
+                    file_prop(),
+                    (
+                        "source",
+                        str_prop("The complete new document as DSL text."),
+                    ),
+                ],
+                &["file", "source"],
+            ),
+        ),
+        tool(
+            "exec",
+            "Append one or more raw DSL lines to a document. The result is validated \
+             by re-parsing before anything is written. With file, appends to the file \
+             and returns a confirmation; with source, returns the updated source.",
+            schema(
+                vec![
+                    file_prop(),
+                    source_prop(),
+                    ("line", str_prop("The DSL line(s) to append.")),
+                ],
+                &["line"],
             ),
         ),
         tool(
             "render",
-            "Render a document to PNG, returned as an inline image. \
-             Optional width/height/color (for currentColor), bg, region crop, \
-             and resolved-geometry outline inspection.",
+            "Render a document to PNG, returned as an inline image. Look at it after \
+             every meaningful change. Optional width/height/color (for currentColor), \
+             bg, scheme (colorscheme for $tokens), region crop, and resolved-geometry \
+             outline inspection.",
             schema(
                 vec![
+                    file_prop(),
                     source_prop(),
                     ("width", int_prop("Render width in pixels.")),
                     ("height", int_prop("Render height in pixels.")),
@@ -239,8 +310,12 @@ pub fn tool_catalog() -> Vec<Json> {
                         str_prop("Concrete color substituted for currentColor."),
                     ),
                     ("bg", str_prop("Background color (e.g. #ffffff).")),
+                    (
+                        "scheme",
+                        str_prop("Colorscheme to resolve $tokens with (base palette if omitted)."),
+                    ),
                 ],
-                &["source"],
+                &[],
             ),
         ),
         tool(
@@ -248,13 +323,14 @@ pub fn tool_catalog() -> Vec<Json> {
             "Structural snapshot of a document as JSON (detail: full|structural|summary).",
             schema(
                 vec![
+                    file_prop(),
                     source_prop(),
                     (
                         "detail",
                         str_prop("full | structural | summary (default structural)."),
                     ),
                 ],
-                &["source"],
+                &[],
             ),
         ),
         tool(
@@ -263,11 +339,12 @@ pub fn tool_catalog() -> Vec<Json> {
              Provide either box (x,y,w,h) or overlaps (an element id).",
             schema(
                 vec![
+                    file_prop(),
                     source_prop(),
                     ("box", str_prop("Region as x,y,w,h.")),
                     ("overlaps", str_prop("Element id to find overlaps of.")),
                 ],
-                &["source"],
+                &[],
             ),
         ),
         tool(
@@ -275,11 +352,12 @@ pub fn tool_catalog() -> Vec<Json> {
             "Describe the spatial relation between two placed elements, as JSON.",
             schema(
                 vec![
+                    file_prop(),
                     source_prop(),
                     ("a", str_prop("First element name.")),
                     ("b", str_prop("Second element name.")),
                 ],
-                &["source", "a", "b"],
+                &["a", "b"],
             ),
         ),
         tool(
@@ -287,11 +365,49 @@ pub fn tool_catalog() -> Vec<Json> {
             "Measure distance / gap / alignment between two placed elements, as JSON.",
             schema(
                 vec![
+                    file_prop(),
                     source_prop(),
                     ("a", str_prop("First element name.")),
                     ("b", str_prop("Second element name.")),
                 ],
-                &["source", "a", "b"],
+                &["a", "b"],
+            ),
+        ),
+        tool(
+            "audit",
+            "Run the visual-quality audit over a document and return the findings as \
+             JSON (missed abstractions, near mirrors, text collisions, rough curves). \
+             Run it after geometry changes; treat findings as evidence, not taste.",
+            schema(vec![file_prop(), source_prop()], &[]),
+        ),
+        tool(
+            "notes_list",
+            "List the review notes a human has pinned onto this document in a \
+             `strok watch` session (from `<file>.notes.json`). Read them first when \
+             work is handed back; they are the review feedback. Listing marks the \
+             notes as seen, so the reviewer's pins show you have them.",
+            schema(
+                vec![(
+                    "file",
+                    str_prop("Path to the .strok document whose notes to read."),
+                )],
+                &["file"],
+            ),
+        ),
+        tool(
+            "note_resolve",
+            "Delete one pinned review note after addressing it. A running watch \
+             session reloads the sidecar, so the reviewer sees the pin clear live. \
+             Resolving the last note removes the sidecar.",
+            schema(
+                vec![
+                    (
+                        "file",
+                        str_prop("Path to the .strok document whose note to resolve."),
+                    ),
+                    ("id", int_prop("The note id to resolve.")),
+                ],
+                &["file", "id"],
             ),
         ),
     ]
@@ -342,45 +458,130 @@ fn dispatch_tool(name: &str, args: &Json) -> Result<Vec<Json>, String> {
             let profile = arg_str(args, "profile");
             let source = crate::build_document_source(&size, profile.as_deref())
                 .map_err(|e| e.to_string())?;
+            match arg_str(args, "file") {
+                Some(file) => {
+                    let path = Path::new(&file);
+                    if path.exists() {
+                        return Err(format!("'{}' already exists", file));
+                    }
+                    std::fs::write(path, &source)
+                        .map_err(|e| format!("failed to write '{}': {}", file, e))?;
+                    Ok(vec![text_content(&format!("created {}", file))])
+                }
+                None => Ok(vec![text_content(&source)]),
+            }
+        }
+        "read" => {
+            let file = require_str(args, "file")?;
+            let source = std::fs::read_to_string(&file)
+                .map_err(|e| format!("failed to read '{}': {}", file, e))?;
             Ok(vec![text_content(&source)])
         }
-        "exec" => {
+        "write" => {
+            let file = require_str(args, "file")?;
             let source = require_str(args, "source")?;
+            let path = Path::new(&file);
+            // Validate before touching the file so a bad write never
+            // clobbers a good document.
+            strok_core::dsl_parse::parse_file_with_path(&source, path)
+                .map_err(|e| strok_error_text(&e))?;
+            std::fs::write(path, &source)
+                .map_err(|e| format!("failed to write '{}': {}", file, e))?;
+            Ok(vec![text_content(&format!(
+                "wrote {} ({} lines, parse ok)",
+                file,
+                source.lines().count()
+            ))])
+        }
+        "exec" => {
             let line = require_str(args, "line")?;
-            let updated = exec_line(&source, &line)?;
-            Ok(vec![text_content(&updated)])
+            match doc_input(args)? {
+                DocInput::Source(source) => {
+                    let updated = exec_lines(&source, &line, None)?;
+                    Ok(vec![text_content(&updated)])
+                }
+                DocInput::File(path) => {
+                    let source = std::fs::read_to_string(&path)
+                        .map_err(|e| format!("failed to read '{}': {}", path.display(), e))?;
+                    let updated = exec_lines(&source, &line, Some(&path))?;
+                    std::fs::write(&path, &updated)
+                        .map_err(|e| format!("failed to write '{}': {}", path.display(), e))?;
+                    Ok(vec![text_content(&format!(
+                        "appended {} line(s) to {} (parse ok)",
+                        line.lines().count(),
+                        path.display()
+                    ))])
+                }
+            }
         }
         "render" => {
-            let source = require_str(args, "source")?;
-            let png = render_source(args, &source)?;
+            let scene = scene_for(&doc_input(args)?)?;
+            let png = render_scene(args, &scene)?;
             Ok(vec![image_content(&png)])
         }
         "inspect" => {
-            let source = require_str(args, "source")?;
+            let scene = scene_for(&doc_input(args)?)?;
             let detail = arg_str(args, "detail").unwrap_or_else(|| "structural".to_string());
-            let json = inspect_source(&source, &detail)?;
+            let json = inspect_scene(&scene, &detail)?;
             Ok(vec![text_content(&json)])
         }
         "query" => {
-            let source = require_str(args, "source")?;
-            let json = query_source(args, &source)?;
+            let scene = scene_for(&doc_input(args)?)?;
+            let json = query_scene(args, &scene)?;
             Ok(vec![text_content(&json)])
         }
         "relate" => {
-            let source = require_str(args, "source")?;
             let a = require_str(args, "a")?;
             let b = require_str(args, "b")?;
-            let scene = parse_source(&source)?;
+            let scene = scene_for(&doc_input(args)?)?;
             let rel = strok_core::query::relate(&scene, &a, &b)?;
             Ok(vec![text_content(&rel.to_json().to_string_pretty())])
         }
         "measure" => {
-            let source = require_str(args, "source")?;
             let a = require_str(args, "a")?;
             let b = require_str(args, "b")?;
-            let scene = parse_source(&source)?;
+            let scene = scene_for(&doc_input(args)?)?;
             let report = strok_core::measure::measure(&scene, &a, &b)?;
             Ok(vec![text_content(&report.to_json())])
+        }
+        "audit" => {
+            let scene = scene_for(&doc_input(args)?)?;
+            let findings = strok_core::audit::audit(&scene);
+            Ok(vec![text_content(
+                &strok_core::audit::findings_to_json(&findings).to_string_pretty(),
+            )])
+        }
+        "notes_list" => {
+            let file = require_str(args, "file")?;
+            let sidecar = crate::watch::notes::sidecar_path(Path::new(&file));
+            let mut notes = load_notes(&sidecar)?;
+            // Listing is the read receipt: the reviewer's pins flip to "seen".
+            if notes.iter().any(|note| !note.ack) {
+                for note in &mut notes {
+                    note.ack = true;
+                }
+                crate::watch::notes::save(&sidecar, &notes).map_err(|e| format!("{:#}", e))?;
+            }
+            Ok(vec![text_content(
+                &Json::obj([("notes", crate::watch::notes::to_json(&notes))]).to_string_pretty(),
+            )])
+        }
+        "note_resolve" => {
+            let file = require_str(args, "file")?;
+            let id = arg_int(args, "id").ok_or("missing required argument 'id'")? as u64;
+            let sidecar = crate::watch::notes::sidecar_path(Path::new(&file));
+            let mut notes = load_notes(&sidecar)?;
+            let before = notes.len();
+            notes.retain(|note| note.id != id);
+            if notes.len() == before {
+                return Err(format!("no note with id {}", id));
+            }
+            crate::watch::notes::save(&sidecar, &notes).map_err(|e| format!("{:#}", e))?;
+            Ok(vec![text_content(&format!(
+                "resolved note {} ({} remaining)",
+                id,
+                notes.len()
+            ))])
         }
         other => Err(format!("unknown tool: {other}")),
     }
@@ -388,26 +589,83 @@ fn dispatch_tool(name: &str, args: &Json) -> Result<Vec<Json>, String> {
 
 // --- tool implementations (reusing the same core paths as the CLI) ---
 
-fn parse_source(source: &str) -> Result<strok_core::scene::Scene, String> {
-    strok_core::dsl_parse::parse_file(source).map_err(|e| e.to_string())
+/// The document argument: exactly one of `file` (path on disk) or `source`
+/// (DSL text).
+enum DocInput {
+    Source(String),
+    File(PathBuf),
 }
 
-fn exec_line(source: &str, line: &str) -> Result<String, String> {
+fn doc_input(args: &Json) -> Result<DocInput, String> {
+    match (arg_str(args, "source"), arg_str(args, "file")) {
+        (Some(_), Some(_)) => Err("pass either source or file, not both".to_string()),
+        (Some(source), None) => Ok(DocInput::Source(source)),
+        (None, Some(file)) => Ok(DocInput::File(PathBuf::from(file))),
+        (None, None) => {
+            Err("pass source (DSL text) or file (path to a .strok document)".to_string())
+        }
+    }
+}
+
+/// Load the scene, resolving module imports relative to the file when the
+/// document comes from disk.
+fn scene_for(input: &DocInput) -> Result<Scene, String> {
+    let doc = match input {
+        DocInput::Source(source) => Document::load_str(source),
+        DocInput::File(path) => Document::load(path),
+    }
+    .map_err(|e| strok_error_text(&e))?;
+    doc.scene
+        .ok_or_else(|| "this tool needs a text .strok document".to_string())
+}
+
+/// Positioned parse diagnostics render their own caret snippets; everything
+/// else gets the plain message (mirrors the CLI's top-level handler).
+fn strok_error_text(e: &strok_core::error::StrokError) -> String {
+    if let strok_core::error::StrokError::ParseDiagnostics(diags) = e {
+        diags
+            .iter()
+            .map(|d| d.render())
+            .collect::<Vec<_>>()
+            .join("\n\n")
+    } else {
+        e.to_string()
+    }
+}
+
+fn load_notes(sidecar: &Path) -> Result<Vec<crate::watch::notes::Note>, String> {
+    crate::watch::notes::load(sidecar)
+        .ok_or_else(|| format!("'{}' does not parse as a notes sidecar", sidecar.display()))
+}
+
+fn exec_lines(source: &str, lines: &str, path: Option<&Path>) -> Result<String, String> {
     let mut updated = source.to_string();
     if !updated.is_empty() && !updated.ends_with('\n') {
         updated.push('\n');
     }
-    updated.push_str(line);
+    updated.push_str(lines);
     if !updated.ends_with('\n') {
         updated.push('\n');
     }
     // Validate by re-parsing, exactly like the CLI's append_line.
-    parse_source(&updated)?;
+    match path {
+        Some(path) => strok_core::dsl_parse::parse_file_with_path(&updated, path)
+            .map(|_| ())
+            .map_err(|e| strok_error_text(&e))?,
+        None => {
+            strok_core::dsl_parse::parse_file(&updated)
+                .map(|_| ())
+                .map_err(|e| strok_error_text(&e))?;
+        }
+    }
     Ok(updated)
 }
 
-fn render_source(args: &Json, source: &str) -> Result<Vec<u8>, String> {
-    let scene = parse_source(source)?;
+fn render_scene(args: &Json, scene: &Scene) -> Result<Vec<u8>, String> {
+    // Resolve $tokens against the requested scheme (base palette when omitted),
+    // exactly like the CLI render path.
+    let scene = strok_core::resolve::apply_scheme(scene, arg_str(args, "scheme").as_deref())
+        .map_err(|e| e.to_string())?;
     let (dw, dh) = (scene.document_size.w, scene.document_size.h);
     let mut svg = strok_core::resolve::resolve_scene(&scene);
     if let Some(spec) = arg_str(args, "outline") {
@@ -458,23 +716,21 @@ fn render_source(args: &Json, source: &str) -> Result<Vec<u8>, String> {
     render_svg_string(&svg, w, h, dw, dh, &opts).map_err(|e| e.to_string())
 }
 
-fn inspect_source(source: &str, detail: &str) -> Result<String, String> {
-    let scene = parse_source(source)?;
+fn inspect_scene(scene: &Scene, detail: &str) -> Result<String, String> {
     let level = strok_core::query::Detail::parse(detail)
         .ok_or_else(|| format!("invalid detail '{detail}' (use full|structural|summary)"))?;
-    let snap = strok_core::query::snapshot(&scene, level);
+    let snap = strok_core::query::snapshot(scene, level);
     Ok(snap.to_json().to_string_pretty())
 }
 
-fn query_source(args: &Json, source: &str) -> Result<String, String> {
-    let scene = parse_source(source)?;
+fn query_scene(args: &Json, scene: &Scene) -> Result<String, String> {
     let result = match (arg_str(args, "box"), arg_str(args, "overlaps")) {
         (Some(_), Some(_)) => return Err("use either box or overlaps, not both".to_string()),
         (Some(spec), None) => {
             let (x, y, w, h) = parse_box_spec(&spec)?;
-            strok_core::query::query_box(&scene, x, y, w, h)
+            strok_core::query::query_box(scene, x, y, w, h)
         }
-        (None, Some(id)) => strok_core::query::query_overlaps(&scene, &id)?,
+        (None, Some(id)) => strok_core::query::query_overlaps(scene, &id)?,
         (None, None) => return Err("query requires box=x,y,w,h or overlaps=<id>".to_string()),
     };
     Ok(result.to_json().to_string_pretty())
@@ -629,7 +885,7 @@ fn require_str(args: &Json, key: &str) -> Result<String, String> {
 // MCP traffic; returns None on malformed input.
 // ---------------------------------------------------------------------------
 
-fn parse_json(s: &str) -> Option<Json> {
+pub(crate) fn parse_json(s: &str) -> Option<Json> {
     let mut p = Parser {
         bytes: s.as_bytes(),
         pos: 0,
@@ -997,6 +1253,201 @@ mod tests {
         // contract; snapshot it so a schema change is a deliberate review event.
         let catalog = Json::array(tool_catalog());
         insta::assert_snapshot!(catalog.to_string_pretty());
+    }
+
+    fn temp_strok(name: &str, contents: &str) -> PathBuf {
+        let path = std::env::temp_dir().join(format!(
+            "strok-mcp-test-{}-{}.strok",
+            std::process::id(),
+            name
+        ));
+        std::fs::write(&path, contents).expect("write temp .strok");
+        path
+    }
+
+    fn text_of(resp: &Json) -> String {
+        let result = field(resp, "result").unwrap();
+        let content = field(result, "content").unwrap();
+        match content {
+            Json::Array(items) => field_str(&items[0], "text").unwrap_or_default(),
+            _ => panic!("expected content array"),
+        }
+    }
+
+    fn is_error(resp: &Json) -> bool {
+        field(field(resp, "result").unwrap(), "isError") == Some(&Json::Bool(true))
+    }
+
+    const TOKEN_DOC: &str = "documentsize 20x20\\n\\npalette\\n  ink #112233\\n\\nscheme dark\\n  ink #aabbcc\\n\\nshape s template=rectangle\\n  fill $ink\\n\\nplace p shape=s at=2,2 size=16x16\\n";
+
+    #[test]
+    fn render_resolves_palette_tokens_and_schemes() {
+        let ok = call(&format!(
+            r#"{{"jsonrpc":"2.0","id":30,"method":"tools/call","params":{{"name":"render","arguments":{{"source":"{TOKEN_DOC}","width":20}}}}}}"#,
+        ))
+        .unwrap();
+        assert!(!is_error(&ok), "{ok:?}");
+
+        let dark = call(&format!(
+            r#"{{"jsonrpc":"2.0","id":31,"method":"tools/call","params":{{"name":"render","arguments":{{"source":"{TOKEN_DOC}","scheme":"dark","width":20}}}}}}"#,
+        ))
+        .unwrap();
+        assert!(!is_error(&dark), "{dark:?}");
+
+        let unknown = call(&format!(
+            r#"{{"jsonrpc":"2.0","id":32,"method":"tools/call","params":{{"name":"render","arguments":{{"source":"{TOKEN_DOC}","scheme":"nope"}}}}}}"#,
+        ))
+        .unwrap();
+        assert!(is_error(&unknown), "{unknown:?}");
+        assert!(text_of(&unknown).contains("unknown scheme"), "{unknown:?}");
+    }
+
+    #[test]
+    fn document_tools_require_exactly_one_input() {
+        let neither =
+            call(r#"{"jsonrpc":"2.0","id":33,"method":"tools/call","params":{"name":"inspect","arguments":{}}}"#)
+                .unwrap();
+        assert!(is_error(&neither));
+        assert!(text_of(&neither).contains("source"), "{neither:?}");
+
+        let both = call(
+            r#"{"jsonrpc":"2.0","id":34,"method":"tools/call","params":{"name":"inspect","arguments":{"source":"documentsize 8x8","file":"x.strok"}}}"#,
+        )
+        .unwrap();
+        assert!(is_error(&both));
+        assert!(text_of(&both).contains("not both"), "{both:?}");
+    }
+
+    #[test]
+    fn file_mode_reads_writes_and_appends() {
+        let path = temp_strok(
+            "filemode",
+            "documentsize 24x24\n\nshape b template=rectangle\n  fill #000000\n\nplace tile shape=b at=2,2 size=20x20\n",
+        );
+        let file = path.to_str().unwrap();
+
+        let read = call(&format!(
+            r#"{{"jsonrpc":"2.0","id":40,"method":"tools/call","params":{{"name":"read","arguments":{{"file":"{file}"}}}}}}"#,
+        ))
+        .unwrap();
+        assert!(text_of(&read).contains("documentsize 24x24"));
+
+        // exec in file mode appends multiple lines and writes back.
+        let exec = call(&format!(
+            r#"{{"jsonrpc":"2.0","id":41,"method":"tools/call","params":{{"name":"exec","arguments":{{"file":"{file}","line":"shape dot template=ellipse\n  fill #ff0000\n\nplace mark shape=dot at=12,12 size=4x4"}}}}}}"#,
+        ))
+        .unwrap();
+        assert!(!is_error(&exec), "{exec:?}");
+        assert!(text_of(&exec).contains("appended 4 line(s)"), "{exec:?}");
+        let on_disk = std::fs::read_to_string(&path).unwrap();
+        assert!(on_disk.contains("place mark"), "{on_disk}");
+
+        // an invalid append is rejected and the file is untouched.
+        let bad = call(&format!(
+            r#"{{"jsonrpc":"2.0","id":42,"method":"tools/call","params":{{"name":"exec","arguments":{{"file":"{file}","line":"garbage line"}}}}}}"#,
+        ))
+        .unwrap();
+        assert!(is_error(&bad), "{bad:?}");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), on_disk);
+
+        // write replaces the document wholesale, validating first.
+        let write = call(&format!(
+            r#"{{"jsonrpc":"2.0","id":43,"method":"tools/call","params":{{"name":"write","arguments":{{"file":"{file}","source":"documentsize 10x10\n"}}}}}}"#,
+        ))
+        .unwrap();
+        assert!(!is_error(&write), "{write:?}");
+        assert!(std::fs::read_to_string(&path).unwrap().contains("10x10"));
+        let bad_write = call(&format!(
+            r#"{{"jsonrpc":"2.0","id":44,"method":"tools/call","params":{{"name":"write","arguments":{{"file":"{file}","source":"nonsense"}}}}}}"#,
+        ))
+        .unwrap();
+        assert!(is_error(&bad_write), "{bad_write:?}");
+        assert!(std::fs::read_to_string(&path).unwrap().contains("10x10"));
+
+        // render straight from the file.
+        let render = call(&format!(
+            r#"{{"jsonrpc":"2.0","id":45,"method":"tools/call","params":{{"name":"render","arguments":{{"file":"{file}","width":10}}}}}}"#,
+        ))
+        .unwrap();
+        assert!(!is_error(&render), "{render:?}");
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn audit_returns_findings_json() {
+        let src = "documentsize 24x24\\nshape b template=rectangle\\n  fill #000000\\nplace b shape=b at=0,0 size=24x24";
+        let resp = call(&format!(
+            r#"{{"jsonrpc":"2.0","id":50,"method":"tools/call","params":{{"name":"audit","arguments":{{"source":"{src}"}}}}}}"#,
+        ))
+        .unwrap();
+        assert!(!is_error(&resp), "{resp:?}");
+        assert!(text_of(&resp).contains("\"findings\""), "{resp:?}");
+    }
+
+    #[test]
+    fn notes_tools_read_and_resolve_the_sidecar() {
+        let path = temp_strok("notes", "documentsize 8x8\n");
+        let file = path.to_str().unwrap();
+        let sidecar = crate::watch::notes::sidecar_path(&path);
+        std::fs::write(
+            &sidecar,
+            "{\"notes\": [{\"id\": 1, \"at\": [2, 3], \"target\": \"p\", \"text\": \"tighten this\"}, {\"id\": 2, \"at\": [5, 5], \"text\": \"more contrast\"}]}\n",
+        )
+        .unwrap();
+
+        let list = call(&format!(
+            r#"{{"jsonrpc":"2.0","id":60,"method":"tools/call","params":{{"name":"notes_list","arguments":{{"file":"{file}"}}}}}}"#,
+        ))
+        .unwrap();
+        assert!(text_of(&list).contains("tighten this"), "{list:?}");
+
+        let resolve = call(&format!(
+            r#"{{"jsonrpc":"2.0","id":61,"method":"tools/call","params":{{"name":"note_resolve","arguments":{{"file":"{file}","id":1}}}}}}"#,
+        ))
+        .unwrap();
+        assert!(!is_error(&resolve), "{resolve:?}");
+        assert!(text_of(&resolve).contains("resolved note 1"), "{resolve:?}");
+        assert!(sidecar.exists());
+
+        let missing = call(&format!(
+            r#"{{"jsonrpc":"2.0","id":62,"method":"tools/call","params":{{"name":"note_resolve","arguments":{{"file":"{file}","id":9}}}}}}"#,
+        ))
+        .unwrap();
+        assert!(is_error(&missing), "{missing:?}");
+
+        let last = call(&format!(
+            r#"{{"jsonrpc":"2.0","id":63,"method":"tools/call","params":{{"name":"note_resolve","arguments":{{"file":"{file}","id":2}}}}}}"#,
+        ))
+        .unwrap();
+        assert!(!is_error(&last), "{last:?}");
+        assert!(
+            !sidecar.exists(),
+            "sidecar should be removed with the last note"
+        );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn new_with_file_writes_and_refuses_overwrite() {
+        let path = std::env::temp_dir().join(format!("strok-mcp-new-{}.strok", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let file = path.to_str().unwrap();
+        let created = call(&format!(
+            r#"{{"jsonrpc":"2.0","id":70,"method":"tools/call","params":{{"name":"new","arguments":{{"file":"{file}","size":"32x32"}}}}}}"#,
+        ))
+        .unwrap();
+        assert!(!is_error(&created), "{created:?}");
+        assert!(std::fs::read_to_string(&path).unwrap().contains("32x32"));
+
+        let clobber = call(&format!(
+            r#"{{"jsonrpc":"2.0","id":71,"method":"tools/call","params":{{"name":"new","arguments":{{"file":"{file}"}}}}}}"#,
+        ))
+        .unwrap();
+        assert!(is_error(&clobber), "{clobber:?}");
+        assert!(text_of(&clobber).contains("already exists"), "{clobber:?}");
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]
