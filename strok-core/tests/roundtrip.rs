@@ -510,12 +510,12 @@ fn sample_d_coords(d: &str) -> Vec<(f64, f64)> {
             let nums = nums_until_next_cmd(i + 1);
             match c {
                 'M' | 'L' => {
-                    for p in nums.chunks_exact(2) {
+                    for p in nums.as_chunks::<2>().0 {
                         out.push((p[0], p[1]));
                     }
                 }
                 'C' => {
-                    for p in nums.chunks_exact(2) {
+                    for p in nums.as_chunks::<2>().0 {
                         out.push((p[0], p[1]));
                     }
                 }
