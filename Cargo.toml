@@ -16,7 +16,7 @@ readme = "README.md"
 # strok-render/tests/golden.rs) behaves the same on every machine + CI runner.
 # AA output is sensitive to these crates' tessellation; do not float them.
 [workspace.dependencies]
-resvg = "=0.47.0"
+resvg = "=0.48.1"
 usvg = "=0.47.0"
 tiny-skia = "=0.12.0"
 
@@ -26,7 +26,7 @@ proptest = "1.5"
 assert_cmd = "2.0"
 predicates = "3.1"
 image = { version = "0.25", default-features = false, features = ["png"] }
-criterion = { version = "0.5", default-features = false }
+criterion = { version = "0.8", default-features = false }
 
 # Workspace-wide lints.
 #
